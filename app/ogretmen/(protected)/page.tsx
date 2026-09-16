@@ -4,12 +4,25 @@ import { useEffect, useState } from 'react'
 
 type Source = { id: number; title: string; kind: string; created_at: string }
 
+async function parseErrorMessage(res: Response): Promise<string> {
+  try {
+    const body = await res.json()
+    if (body && typeof body.error === 'string' && body.error.trim()) {
+      return body.error
+    }
+  } catch {
+    // response body wasn't JSON (e.g. an unhandled server error) - fall through
+  }
+  return 'Bir hata oluştu. Lütfen tekrar deneyin.'
+}
+
 export default function OgretmenPage() {
   const [sources, setSources] = useState<Source[]>([])
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function loadSources() {
     const res = await fetch('/api/sources')
@@ -25,11 +38,17 @@ export default function OgretmenPage() {
     if (!title.trim() || !text.trim() || saving) return
     setSaving(true)
     try {
-      await fetch('/api/sources', {
+      const res = await fetch('/api/sources', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, kind: 'text', text }),
       })
+      if (!res.ok) {
+        const message = await parseErrorMessage(res)
+        setError(message)
+        return
+      }
+      setError(null)
       setTitle('')
       setText('')
       await loadSources()
@@ -41,7 +60,13 @@ export default function OgretmenPage() {
   async function removeSource(id: number) {
     setDeletingId(id)
     try {
-      await fetch(`/api/sources/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/sources/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const message = await parseErrorMessage(res)
+        setError(message)
+        return
+      }
+      setError(null)
       await loadSources()
     } finally {
       setDeletingId(null)
@@ -51,6 +76,7 @@ export default function OgretmenPage() {
   return (
     <main className="ogretmen-page">
       <h1 className="ogretmen-title">Kaynak Yönetimi</h1>
+      {error && <p className="ogretmen-error">{error}</p>}
 
       <section className="ogretmen-section">
         <input
