@@ -177,13 +177,14 @@ textarea:focus-visible {
 }
 
 .tahta-error {
+  font-size: 1.25rem;
   color: var(--color-error);
   line-height: 1.5;
 }
 
 .tahta-answer {
-  border-left: 4px solid var(--color-accent);
   background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: var(--space-3);
   display: flex;
@@ -192,6 +193,7 @@ textarea:focus-visible {
 }
 
 .tahta-answer-text {
+  font-size: 1.25rem;
   line-height: 1.6;
   color: var(--color-text);
   white-space: pre-wrap;
