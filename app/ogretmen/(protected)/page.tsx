@@ -122,6 +122,20 @@ export default function OgretmenPage() {
           </ul>
         )}
       </section>
+
+      <section className="ogretmen-section">
+        <h2 className="ogretmen-section-title">Sistem</h2>
+        <button
+          className="ogretmen-button ogretmen-button-primary"
+          onClick={async () => {
+            if (confirm('Sistemi yeniden başlatmak istediğine emin misin?')) {
+              await fetch('/api/restart', { method: 'POST' })
+            }
+          }}
+        >
+          Sistemi Yeniden Başlat
+        </button>
+      </section>
     </main>
   )
 }
