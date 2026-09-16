@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { isValidSession } from '@/lib/auth'
+import { clearCache } from '@/lib/cache'
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isValidSession(req.cookies.get('session')?.value)) {
@@ -8,5 +9,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
   const { id } = await params
   await query('DELETE FROM sources WHERE id = $1', [Number(id)])
+  clearCache()
   return NextResponse.json({ ok: true })
 }
