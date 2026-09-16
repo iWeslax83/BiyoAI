@@ -3,6 +3,13 @@
 import { useEffect, useState } from 'react'
 
 type Source = { id: number; title: string; kind: string; created_at: string }
+type QaLogEntry = {
+  id: number
+  question: string
+  answer: string
+  grounded: boolean
+  created_at: string
+}
 
 async function parseErrorMessage(res: Response): Promise<string> {
   try {
@@ -24,15 +31,49 @@ export default function OgretmenPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const [qaLog, setQaLog] = useState<QaLogEntry[]>([])
+  const [notes, setNotes] = useState<Record<number, string>>({})
+  const [sendingNoteId, setSendingNoteId] = useState<number | null>(null)
+  const [qaLogError, setQaLogError] = useState<string | null>(null)
+
   async function loadSources() {
     const res = await fetch('/api/sources')
     const body = await res.json()
     setSources(body.sources ?? [])
   }
 
+  async function loadQaLog() {
+    const res = await fetch('/api/qa-log')
+    const body = await res.json()
+    setQaLog(body.entries ?? [])
+  }
+
   useEffect(() => {
     loadSources()
+    loadQaLog()
   }, [])
+
+  async function sendNote(qaLogId: number) {
+    const note = (notes[qaLogId] ?? '').trim()
+    if (!note || sendingNoteId !== null) return
+    setSendingNoteId(qaLogId)
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qaLogId, note }),
+      })
+      if (!res.ok) {
+        const message = await parseErrorMessage(res)
+        setQaLogError(message)
+        return
+      }
+      setQaLogError(null)
+      setNotes((prev) => ({ ...prev, [qaLogId]: '' }))
+    } finally {
+      setSendingNoteId(null)
+    }
+  }
 
   async function addSource() {
     if (!title.trim() || !text.trim() || saving) return
@@ -117,6 +158,44 @@ export default function OgretmenPage() {
                 >
                   {deletingId === s.id ? 'Siliniyor...' : 'Sil'}
                 </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="ogretmen-section">
+        <h2 className="ogretmen-section-title">Son Sorular</h2>
+        {qaLogError && <p className="ogretmen-error">{qaLogError}</p>}
+        {qaLog.length === 0 ? (
+          <p className="ogretmen-source-empty">Henüz soru sorulmadı.</p>
+        ) : (
+          <ul className="ogretmen-qalog-list">
+            {qaLog.map((entry) => (
+              <li key={entry.id} className="ogretmen-qalog-item">
+                <p className="ogretmen-qalog-question">{entry.question}</p>
+                <p className="ogretmen-qalog-answer">{entry.answer}</p>
+                <p className="ogretmen-qalog-meta">
+                  {entry.grounded ? 'Kaynaklı' : 'Kaynaksız'} ·{' '}
+                  {new Date(entry.created_at).toLocaleString('tr-TR')}
+                </p>
+                <div className="ogretmen-qalog-note-row">
+                  <input
+                    className="ogretmen-input ogretmen-qalog-note-input"
+                    value={notes[entry.id] ?? ''}
+                    onChange={(e) =>
+                      setNotes((prev) => ({ ...prev, [entry.id]: e.target.value }))
+                    }
+                    placeholder="Not ekle..."
+                  />
+                  <button
+                    className="ogretmen-button ogretmen-qalog-note-button"
+                    onClick={() => sendNote(entry.id)}
+                    disabled={sendingNoteId === entry.id || !(notes[entry.id] ?? '').trim()}
+                  >
+                    {sendingNoteId === entry.id ? 'Gönderiliyor...' : 'Gönder'}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

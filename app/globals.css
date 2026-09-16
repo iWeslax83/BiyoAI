@@ -379,6 +379,57 @@ textarea:focus-visible {
   cursor: not-allowed;
 }
 
+.ogretmen-qalog-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ogretmen-qalog-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ogretmen-qalog-question {
+  color: var(--color-text);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.ogretmen-qalog-answer {
+  color: var(--color-text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.ogretmen-qalog-meta {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.ogretmen-qalog-note-row {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.ogretmen-qalog-note-input {
+  flex: 1;
+  min-width: 160px;
+}
+
+.ogretmen-qalog-note-button {
+  width: auto;
+  flex-shrink: 0;
+  padding: 0.5rem 1rem;
+}
+
 @media (max-width: 480px) {
   .ogretmen-page {
     padding: var(--space-3) var(--space-2);
