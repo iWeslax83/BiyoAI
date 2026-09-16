@@ -4,9 +4,9 @@ vi.mock('../../lib/groq', () => ({
   embed: vi.fn(async (texts: string[]) => texts.map(() => [0.1, 0.2, 0.3])),
 }))
 
-const queryMock = vi.fn(async () => [])
+const queryMock = vi.fn(async (_sql: string, _params: unknown[]): Promise<unknown[]> => [])
 vi.mock('../../lib/db', () => ({
-  query: (...args: unknown[]) => queryMock(...args),
+  query: (sql: string, params: unknown[]) => queryMock(sql, params),
 }))
 
 import { ingestSource } from '../../lib/ingest'

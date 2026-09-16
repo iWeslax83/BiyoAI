@@ -7,9 +7,9 @@ vi.mock('../../lib/retrieve', () => ({
 vi.mock('../../lib/groq', () => ({
   chatComplete: vi.fn(async () => 'Mitoz, [kaynak:3] hücrenin bölünmesidir.'),
 }))
-const queryMock = vi.fn(async () => [{ id: 42 }])
+const queryMock = vi.fn(async (_sql: string, _params: unknown[]): Promise<unknown[]> => [{ id: 42 }])
 vi.mock('../../lib/db', () => ({
-  query: (...args: unknown[]) => queryMock(...args),
+  query: (sql: string, params: unknown[]) => queryMock(sql, params),
 }))
 
 import { answerQuestion } from '../../lib/rag'
