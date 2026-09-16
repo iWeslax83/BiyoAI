@@ -12,7 +12,7 @@ function makeRequest(cookie?: string): NextRequest {
 
 describe('POST /api/restart', () => {
   beforeEach(() => {
-    process.env.SESSION_SECRET = 'test-secret'
+    process.env.SESSION_SECRET = 'test-secret-that-is-at-least-32-chars-long'
   })
 
   it('returns 401 when there is no session cookie', async () => {
