@@ -221,6 +221,12 @@ textarea:focus-visible {
   flex-shrink: 0;
 }
 
+.tahta-sources {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
 @media (max-width: 480px) {
   .tahta-page {
     padding: var(--space-3) var(--space-2);

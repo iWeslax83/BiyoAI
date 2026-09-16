@@ -2,7 +2,19 @@
 
 import { useState } from 'react'
 
-type Answer = { answer: string; grounded: boolean; sourceIds: number[] }
+type Answer = { answer: string; grounded: boolean; sourceIds: number[]; sourceTitles: string[] }
+
+async function parseErrorMessage(res: Response): Promise<string> {
+  try {
+    const body = await res.json()
+    if (body && typeof body.error === 'string' && body.error.trim()) {
+      return body.error
+    }
+  } catch {
+    // response body wasn't JSON (e.g. an unhandled server error) - fall through
+  }
+  return 'Bir hata oluştu. Lütfen tekrar deneyin.'
+}
 
 export default function TahtaPage() {
   const [question, setQuestion] = useState('')
@@ -22,15 +34,18 @@ export default function TahtaPage() {
         body: JSON.stringify({ question }),
       })
       if (!res.ok) {
-        const body = await res.json()
-        setError(body.error ?? 'Bir hata oluştu.')
+        setError(await parseErrorMessage(res))
         return
       }
       setAnswer(await res.json())
+    } catch {
+      setError('Bir hata oluştu. Lütfen tekrar deneyin.')
     } finally {
       setLoading(false)
     }
   }
+
+  const displayedAnswer = answer ? answer.answer.replace(/\[kaynak:\d+\]/g, '').trim() : ''
 
   return (
     <main className="tahta-page">
@@ -75,9 +90,12 @@ export default function TahtaPage() {
               Doğrulanamadı
             </span>
           )}
-          <p className="tahta-answer-text">{answer.answer}</p>
+          <p className="tahta-answer-text">{displayedAnswer}</p>
           {!answer.grounded && (
             <p className="tahta-answer-text">Bu cevap doğrulanamadı, öğretmenine sor.</p>
+          )}
+          {answer.grounded && answer.sourceTitles.length > 0 && (
+            <p className="tahta-sources">Kaynaklar: {answer.sourceTitles.join(', ')}</p>
           )}
         </div>
       )}
