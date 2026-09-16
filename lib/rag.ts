@@ -20,12 +20,15 @@ export async function answerQuestion(question: string): Promise<RagAnswer> {
   const citedIds = Array.from(new Set(
     Array.from(answer.matchAll(/\[kaynak:(\d+)\]/g)).map((m) => Number(m[1]))
   ))
-  const grounded = citedIds.length > 0
+
+  const retrievedSourceIds = new Set(chunks.map((c) => c.sourceId))
+  const validatedIds = citedIds.filter((id) => retrievedSourceIds.has(id))
+  const grounded = validatedIds.length > 0
 
   await query(
     `INSERT INTO qa_log (question, answer, grounded, source_ids) VALUES ($1, $2, $3, $4)`,
-    [question, answer, grounded, citedIds]
+    [question, answer, grounded, validatedIds]
   )
 
-  return { answer, grounded, sourceIds: citedIds }
+  return { answer, grounded, sourceIds: validatedIds }
 }

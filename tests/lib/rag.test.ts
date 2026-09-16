@@ -13,6 +13,8 @@ vi.mock('../../lib/db', () => ({
 }))
 
 import { answerQuestion } from '../../lib/rag'
+import { retrieveChunks } from '../../lib/retrieve'
+import { chatComplete } from '../../lib/groq'
 
 describe('answerQuestion', () => {
   it('returns a grounded answer with cited source ids and logs it', async () => {
@@ -25,5 +27,35 @@ describe('answerQuestion', () => {
       expect.stringContaining('INSERT INTO qa_log'),
       expect.arrayContaining(['Mitoz nedir?'])
     )
+  })
+
+  it('returns grounded=false with no source ids when the model cites nothing, but still logs the qa', async () => {
+    vi.mocked(chatComplete).mockResolvedValueOnce('Bu konuda elimde kaynak yok, bilmiyorum.')
+    queryMock.mockClear()
+
+    const result = await answerQuestion('Bilinmeyen bir soru?')
+
+    expect(result.grounded).toBe(false)
+    expect(result.sourceIds).toEqual([])
+    expect(queryMock).toHaveBeenCalledTimes(1)
+    expect(queryMock).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO qa_log'),
+      expect.arrayContaining(['Bilinmeyen bir soru?'])
+    )
+  })
+
+  it('filters out fabricated citation ids that were never actually retrieved', async () => {
+    vi.mocked(retrieveChunks).mockResolvedValueOnce([
+      { id: 1, sourceId: 3, content: 'Mitoz hücre bölünmesidir.' },
+    ])
+    vi.mocked(chatComplete).mockResolvedValueOnce(
+      'Mitoz, [kaynak:3] hücrenin bölünmesidir. Ayrıca [kaynak:99] uydurma bir kaynak.'
+    )
+
+    const result = await answerQuestion('Mitoz nedir?')
+
+    expect(result.sourceIds).toEqual([3])
+    expect(result.sourceIds).not.toContain(99)
+    expect(result.grounded).toBe(true)
   })
 })
