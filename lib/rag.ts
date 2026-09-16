@@ -1,14 +1,23 @@
 import { retrieveChunks, retrieveFeedback } from './retrieve'
-import { chatComplete } from './groq'
+import { chatComplete, embed } from './groq'
 import { buildSystemPrompt } from './prompt'
 import { query } from './db'
 
-export type RagAnswer = { answer: string; grounded: boolean; sourceIds: number[] }
+export type RagAnswer = {
+  answer: string
+  grounded: boolean
+  sourceIds: number[]
+  sourceTitles: string[]
+}
 
 export async function answerQuestion(question: string): Promise<RagAnswer> {
+  // Embed the question once and reuse the vector for both retrieval calls,
+  // instead of each independently calling Groq's embeddings endpoint for the
+  // identical text (2x the calls, latency, and rate-limit consumption).
+  const [vector] = await embed([question])
   const [chunks, feedback] = await Promise.all([
-    retrieveChunks(question, 5),
-    retrieveFeedback(question, 5),
+    retrieveChunks(vector, 5),
+    retrieveFeedback(vector, 5),
   ])
 
   const systemPrompt = buildSystemPrompt(chunks, feedback)
@@ -30,5 +39,14 @@ export async function answerQuestion(question: string): Promise<RagAnswer> {
     [question, answer, grounded, validatedIds]
   )
 
-  return { answer, grounded, sourceIds: validatedIds }
+  const sourceTitles =
+    validatedIds.length > 0
+      ? (
+          await query<{ title: string }>('SELECT title FROM sources WHERE id = ANY($1)', [
+            validatedIds,
+          ])
+        ).map((s) => s.title)
+      : []
+
+  return { answer, grounded, sourceIds: validatedIds, sourceTitles }
 }
