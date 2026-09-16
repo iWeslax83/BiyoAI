@@ -1,5 +1,28 @@
 # BiyoAI Çalıştırma Kılavuzu
 
+## İlk Kurulum
+
+Okul PC'sinde `/opt/biyoai` altına proje kopyalandıktan sonra, tek seferlik olarak:
+
+1. Ortam dosyasını oluştur:
+   ```
+   cd /opt/biyoai && cp .env.example .env
+   ```
+2. `.env` dosyasını aç ve `GROQ_API_KEY` satırına Groq API anahtarını yapıştır.
+3. Güçlü bir oturum anahtarı üret ve `.env` dosyasındaki `SESSION_SECRET` satırına yapıştır (bu adım zorunlu, boş bırakılırsa uygulama başlamaz):
+   ```
+   openssl rand -hex 32
+   ```
+4. Servisleri başlat:
+   ```
+   docker compose up -d
+   ```
+5. Öğretmen şifresini ilk kez belirle (yeni şifreyi kendin seçersin):
+   ```
+   docker compose exec app npm run seed:teacher -- <ilk-sifre>
+   ```
+6. `http://biyoai.local:3000/tahta` ve `/ogretmen` adreslerinin açıldığını doğrula.
+
 ## Sistem çalışmıyor / tahta soruları cevaplamıyor
 
 1. Okul PC'sinin açık ve internete bağlı olduğundan emin ol.
@@ -12,9 +35,9 @@
 
 ## Şifremi unuttum
 
-Teknik personel PC'de şunu çalıştırmalı (yeni şifreyi kendisi belirler):
+Teknik personel PC'de şunu çalıştırmalı (yeni şifreyi kendisi belirler). Sistem tamamen Docker üzerinden çalıştığı için host makinede ayrıca Node kurulu olması gerekmez, komut doğrudan çalışan `app` container'ı içinde çalıştırılır:
 ```
-cd /opt/biyoai && npm run seed:teacher -- <yeni-sifre>
+cd /opt/biyoai && docker compose exec app npm run seed:teacher -- <yeni-sifre>
 ```
 
 ## Yedekten geri yükleme
