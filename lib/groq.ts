@@ -1,13 +1,34 @@
+import { requireEnv } from './env'
+
 const BASE_URL = 'https://api.groq.com/openai/v1'
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 
-async function groqFetch(path: string, body: unknown): Promise<any> {
+// Whether the Groq env vars this module needs are present. Checked lazily
+// (not at import time) so it fails fast on the first real Groq call rather
+// than an unset key silently producing a 401 that shows up to students as an
+// unhelpful generic "system busy" message. Also used by /api/health to
+// report Groq configuration status without making a live API call.
+export function hasGroqConfig(): boolean {
+  return Boolean(
+    process.env.GROQ_API_KEY && process.env.GROQ_CHAT_MODEL && process.env.GROQ_EMBED_MODEL
+  )
+}
+
+function requireGroqConfig(): { apiKey: string; chatModel: string; embedModel: string } {
+  return {
+    apiKey: requireEnv('GROQ_API_KEY'),
+    chatModel: requireEnv('GROQ_CHAT_MODEL'),
+    embedModel: requireEnv('GROQ_EMBED_MODEL'),
+  }
+}
+
+async function groqFetch(path: string, apiKey: string, body: unknown): Promise<any> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
   })
@@ -19,16 +40,18 @@ async function groqFetch(path: string, body: unknown): Promise<any> {
 }
 
 export async function embed(texts: string[]): Promise<number[][]> {
-  const json = await groqFetch('/embeddings', {
-    model: process.env.GROQ_EMBED_MODEL,
+  const { apiKey, embedModel } = requireGroqConfig()
+  const json = await groqFetch('/embeddings', apiKey, {
+    model: embedModel,
     input: texts,
   })
   return json.data.map((d: { embedding: number[] }) => d.embedding)
 }
 
 export async function chatComplete(messages: ChatMessage[]): Promise<string> {
-  const json = await groqFetch('/chat/completions', {
-    model: process.env.GROQ_CHAT_MODEL,
+  const { apiKey, chatModel } = requireGroqConfig()
+  const json = await groqFetch('/chat/completions', apiKey, {
+    model: chatModel,
     messages,
     temperature: 0.2,
   })
