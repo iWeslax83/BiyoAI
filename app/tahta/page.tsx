@@ -1,51 +1,58 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
+import { useState } from "react";
 
-type Answer = { answer: string; grounded: boolean; sourceIds: number[]; sourceTitles: string[] }
+type Answer = {
+  answer: string;
+  grounded: boolean;
+  sourceIds: number[];
+  sourceTitles: string[];
+};
 
 async function parseErrorMessage(res: Response): Promise<string> {
   try {
-    const body = await res.json()
-    if (body && typeof body.error === 'string' && body.error.trim()) {
-      return body.error
+    const body = await res.json();
+    if (body && typeof body.error === "string" && body.error.trim()) {
+      return body.error;
     }
   } catch {
     // response body wasn't JSON (e.g. an unhandled server error) - fall through
   }
-  return 'Bir hata oluştu. Lütfen tekrar deneyin.'
+  return "Bir hata oluştu. Lütfen tekrar deneyin.";
 }
 
 export default function TahtaPage() {
-  const [question, setQuestion] = useState('')
-  const [answer, setAnswer] = useState<Answer | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState<Answer | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function ask() {
-    if (!question.trim() || loading) return
-    setLoading(true)
-    setError(null)
-    setAnswer(null)
+    if (!question.trim() || loading) return;
+    setLoading(true);
+    setError(null);
+    setAnswer(null);
     try {
-      const res = await fetch('/api/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
-      })
+      });
       if (!res.ok) {
-        setError(await parseErrorMessage(res))
-        return
+        setError(await parseErrorMessage(res));
+        return;
       }
-      setAnswer(await res.json())
+      setAnswer(await res.json());
     } catch {
-      setError('Bir hata oluştu. Lütfen tekrar deneyin.')
+      setError("Bir hata oluştu. Lütfen tekrar deneyin.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
-  const displayedAnswer = answer ? answer.answer.replace(/\[kaynak:\d+\]/g, '').trim() : ''
+  const displayedAnswer = answer
+    ? answer.answer.replace(/\[kaynak:\d+\]/g, "").trim()
+    : "";
 
   return (
     <main className="tahta-page">
@@ -65,14 +72,14 @@ export default function TahtaPage() {
             onClick={ask}
             disabled={loading}
           >
-            {loading ? 'Yanıtlanıyor...' : 'Sor'}
+            {loading ? "Yanıtlanıyor..." : "Sor"}
           </button>
           <button
             className="tahta-button tahta-button-secondary"
             onClick={() => {
-              setQuestion('')
-              setAnswer(null)
-              setError(null)
+              setQuestion("");
+              setAnswer(null);
+              setError(null);
             }}
           >
             Temizle
@@ -92,13 +99,17 @@ export default function TahtaPage() {
           )}
           <p className="tahta-answer-text">{displayedAnswer}</p>
           {!answer.grounded && (
-            <p className="tahta-answer-text">Bu cevap doğrulanamadı, öğretmenine sor.</p>
+            <p className="tahta-answer-text">
+              Bu cevap doğrulanamadı, öğretmenine sor.
+            </p>
           )}
           {answer.grounded && answer.sourceTitles.length > 0 && (
-            <p className="tahta-sources">Kaynaklar: {answer.sourceTitles.join(', ')}</p>
+            <p className="tahta-sources">
+              Kaynaklar: {answer.sourceTitles.join(", ")}
+            </p>
           )}
         </div>
       )}
     </main>
-  )
+  );
 }

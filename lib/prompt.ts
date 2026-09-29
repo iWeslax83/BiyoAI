@@ -1,16 +1,19 @@
-type Chunk = { id: number; sourceId: number; content: string }
-type Feedback = { id: number; note: string }
+type Chunk = { id: number; sourceId: number; content: string };
+type Feedback = { id: number; note: string };
 
-export function buildSystemPrompt(chunks: Chunk[], feedback: Feedback[]): string {
+export function buildSystemPrompt(
+  chunks: Chunk[],
+  feedback: Feedback[],
+): string {
   const sourceBlock =
     chunks.length > 0
-      ? chunks.map((c) => `[kaynak:${c.sourceId}] ${c.content}`).join('\n\n')
-      : '(Bu soru için ilgili kaynak bulunamadı.)'
+      ? chunks.map((c) => `[kaynak:${c.sourceId}] ${c.content}`).join("\n\n")
+      : "(Bu soru için ilgili kaynak bulunamadı.)";
 
   const feedbackBlock =
     feedback.length > 0
-      ? `\n\nÖğretmenin bu tür sorular için notları:\n${feedback.map((f) => `- ${f.note}`).join('\n')}`
-      : ''
+      ? `\n\nÖğretmenin bu tür sorular için notları:\n${feedback.map((f) => `- ${f.note}`).join("\n")}`
+      : "";
 
   return `Sen 11. sınıf biyoloji dersi için bir öğretim asistanısın.
 
@@ -22,5 +25,5 @@ Kurallar:
 - Lise seviyesine uygun, anlaşılır Türkçe kullan.
 
 Kaynaklar:
-${sourceBlock}${feedbackBlock}`
+${sourceBlock}${feedbackBlock}`;
 }

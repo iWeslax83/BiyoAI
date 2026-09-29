@@ -3,7 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "BiyoAI",
-  description: "Biyoloji dersi kaynaklarından soruları cevaplayan öğretim asistanı.",
+  description:
+    "Biyoloji dersi kaynaklarından soruları cevaplayan öğretim asistanı.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
