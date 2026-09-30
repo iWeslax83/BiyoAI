@@ -53,13 +53,11 @@ describe("groq client", () => {
   it("throws a descriptive error on a non-ok response", async () => {
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue({
-          ok: false,
-          status: 429,
-          text: async () => "rate limited",
-        }),
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        text: async () => "rate limited",
+      }),
     );
     await expect(
       chatComplete([{ role: "user", content: "x" }]),
