@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: biyoai
+          POSTGRES_PASSWORD: biyoai
+          POSTGRES_DB: biyoai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U biyoai"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://biyoai:biyoai@localhost:5432/biyoai_test
+      TEST_DATABASE_URL: postgres://biyoai:biyoai@localhost:5432/biyoai_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply database schema
+        run: psql "$DATABASE_URL" -f lib/schema.sql
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npm run build
