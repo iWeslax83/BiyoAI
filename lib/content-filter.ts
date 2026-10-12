@@ -41,6 +41,15 @@ const PREFIX_STEMS = [
   "fahise",
   "gerizekal",
   "aptal",
+  "kahpe",
+  "yavsak",
+  "embesil",
+  "ahmak",
+  "budala",
+  "mankafa",
+  "enayi",
+  "godos",
+  "gotlek",
 ];
 
 function normalize(text: string): string {

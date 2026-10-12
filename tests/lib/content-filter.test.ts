@@ -42,4 +42,26 @@ describe("isInappropriate", () => {
   it("returns false for an empty string", () => {
     expect(isInappropriate("")).toBe(false);
   });
+
+  it.each([
+    "Sen kahpe misin",
+    "yavşak herif",
+    "Embesil",
+    "Ahmak musun sen",
+    "budala",
+    "mankafa",
+    "Enayi misin?",
+  ])("flags the insult in %s", (text) => {
+    expect(isInappropriate(text)).toBe(true);
+  });
+
+  it.each([
+    "Sıkışma neden olur?",
+    "Hıyar bitkisinde tohum yayılımı nasıl olur?",
+    "Amino asit nedir?",
+    "Aminoasitler proteinleri oluşturur",
+    "Yarım koruyucu zar ne demek?",
+  ])("allows the biology question %s", (text) => {
+    expect(isInappropriate(text)).toBe(false);
+  });
 });
