@@ -1,8 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { verifyPassword, createSessionCookie } from "@/lib/auth";
+import { clientKey, createRateLimiter } from "@/lib/rate-limit";
+
+// Slows down password guessing against the teacher panel.
+const loginLimiter = createRateLimiter({ limit: 10, windowMs: 60_000 });
 
 export async function POST(req: NextRequest) {
+  const attempt = loginLimiter.check(clientKey(req));
+  if (!attempt.allowed) {
+    return NextResponse.json(
+      { error: "Çok fazla deneme yapıldı, lütfen biraz bekle." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(attempt.retryAfterSeconds) },
+      },
+    );
+  }
+
   const { password } = await req.json();
   const [teacher] = await query<{ password_hash: string }>(
     "SELECT password_hash FROM teacher ORDER BY id LIMIT 1",

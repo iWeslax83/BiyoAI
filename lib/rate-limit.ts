@@ -33,3 +33,11 @@ export function createRateLimiter({ limit, windowMs }: Options) {
     },
   };
 }
+
+// Identifies the caller for rate limiting. Behind no proxy on the school LAN,
+// x-forwarded-for is client-controlled, so this only stops accidental floods
+// and casual guessing, not a determined attacker who forges the header.
+export function clientKey(req: { headers: Headers }): string {
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0].trim();
+  return forwarded || req.headers.get("x-real-ip") || "unknown";
+}
