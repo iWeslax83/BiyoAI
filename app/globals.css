@@ -545,6 +545,17 @@ textarea:focus-visible {
   color: var(--color-accent);
 }
 
+.ogretmen-status-failed {
+  color: var(--color-error);
+}
+
+.ogretmen-source-reason {
+  color: var(--color-error);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
 .ogretmen-status-pending {
   color: var(--color-warn);
 }

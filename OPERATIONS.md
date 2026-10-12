@@ -74,3 +74,27 @@ docker compose up -d --build
 ## Kaynak "işlenmeyi bekliyor" görünüyor
 
 İnternet yokken eklenen kaynaklar bu durumda kalır ve bağlantı gelince otomatik işlenir (birkaç dakika sürebilir). Panel sayfası açıkken liste kendiliğinden yenilenir. Uzun süre değişmiyorsa Groq API anahtarının doğru olduğunu kontrol et.
+
+## Embedding servisi (yerel çalıştırma)
+
+Kaynakların aranabilir hâle gelmesi için metinler vektöre çevrilir (embedding). Varsayılan olarak Groq kullanılır, ama Groq hesabında embedding modeli yoksa kaynaklar "işlenmeyi bekliyor" durumunda kalır ve panelde ayar hatası görünür. Bu durumda okul PC'sinde yerel servis çalıştırılabilir:
+
+```
+cd /opt/biyoai
+docker compose --profile local-embeddings up -d
+docker compose --profile local-embeddings exec ollama ollama pull nomic-embed-text
+```
+
+Ardından `.env` dosyasına şunları ekle ve uygulamayı yeniden başlat:
+
+```
+EMBED_BASE_URL=http://ollama:11434/v1
+EMBED_MODEL=nomic-embed-text
+```
+
+```
+docker compose up -d --force-recreate app
+```
+
+Model 768 boyutlu vektör üretmelidir (veritabanı sütunu buna göre). Embedding sağlayıcısı değiştirilirse eski kaynakların vektörleri yeni modelle uyumsuz olur: tüm kaynaklar silinip yeniden eklenmeli (ya da panelden metni düzenleyip kaydederek yeniden işlenmeli).
+

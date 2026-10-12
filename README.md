@@ -71,7 +71,8 @@ npm run seed:teacher -- <sifre>
 | `TEST_DATABASE_URL` | Sadece testler için. Adında `test` geçen, silinebilir bir veritabanı olmalı |
 | `GROQ_API_KEY` | Groq API anahtarı |
 | `GROQ_CHAT_MODEL` | Sohbet modeli (varsayılan `llama-3.3-70b-versatile`) |
-| `GROQ_EMBED_MODEL` | Embedding modeli (varsayılan `nomic-embed-text-v1_5`) |
+| `GROQ_EMBED_MODEL` | Groq üzerinden embedding modeli. Groq hesabında embedding modeli olduğundan emin ol |
+| `EMBED_BASE_URL`, `EMBED_MODEL`, `EMBED_API_KEY` | İsteğe bağlı. OpenAI uyumlu başka bir embedding sunucusu (ör. yerel Ollama). Ayarlanırsa embedding için Groq kullanılmaz. Model 768 boyutlu olmalı |
 | `SESSION_SECRET` | Oturum imzası, en az 32 karakter |
 
 ## Testler

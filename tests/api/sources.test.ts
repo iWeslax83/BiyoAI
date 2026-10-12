@@ -28,8 +28,9 @@ vi.mock("@/lib/pdf", () => ({
   extractPdfText: (data: Uint8Array) => extractPdfMock(data),
 }));
 
-import { POST } from "../../app/api/sources/route";
+import { GET, POST } from "../../app/api/sources/route";
 import { LinkError } from "../../lib/fetch-link";
+import { ProviderError } from "../../lib/provider-error";
 
 function makeRequest(body: unknown): NextRequest {
   return new NextRequest("http://localhost/api/sources", {
@@ -78,6 +79,42 @@ describe("POST /api/sources (text)", () => {
     expect(body.message).toContain("otomatik");
     expect(
       queryMock.mock.calls.some(([sql]) => sql.includes("DELETE FROM sources")),
+    ).toBe(false);
+  });
+
+  it("marks the source failed and answers 422 when the provider rejects the content", async () => {
+    ingestMock.mockRejectedValue(new ProviderError("input too long", "input"));
+
+    const res = await POST(
+      makeRequest({ title: "Hücre", kind: "text", text: "Hücre zarı" }),
+    );
+
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.status).toBe("failed");
+    expect(body.error).toContain("input too long");
+    expect(
+      queryMock.mock.calls.some(([sql]) =>
+        sql.includes("SET status = 'failed'"),
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps the source pending and points at the settings when the provider is misconfigured", async () => {
+    ingestMock.mockRejectedValue(new ProviderError("401 bad key", "config"));
+
+    const res = await POST(
+      makeRequest({ title: "Hücre", kind: "text", text: "Hücre zarı" }),
+    );
+
+    expect(res.status).toBe(202);
+    const body = await res.json();
+    expect(body.status).toBe("pending");
+    expect(body.message).toContain("ayar");
+    expect(
+      queryMock.mock.calls.some(([sql]) =>
+        sql.includes("SET status = 'failed'"),
+      ),
     ).toBe(false);
   });
 
@@ -224,5 +261,18 @@ describe("POST /api/sources (pdf)", () => {
     const file = new File(["bozuk"], "bozuk.pdf", { type: "application/pdf" });
     const res = await POST(pdfRequest(file));
     expect(res.status).toBe(400);
+  });
+});
+
+describe("GET /api/sources", () => {
+  it("includes the provider status so the panel can show setup problems", async () => {
+    queryMock.mockReset();
+    queryMock.mockResolvedValue([]);
+
+    const res = await GET(new NextRequest("http://localhost/api/sources"));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.provider.embeddings).toEqual({ ok: true, error: null });
   });
 });

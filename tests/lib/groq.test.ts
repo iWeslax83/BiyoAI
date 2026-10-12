@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { embed, chatComplete } from "../../lib/groq";
 
+const vec = (value: number) => new Array(768).fill(value);
+
 describe("groq client", () => {
   beforeEach(() => {
     process.env.GROQ_API_KEY = "test-key";
@@ -12,17 +14,14 @@ describe("groq client", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        data: [{ embedding: [0.1, 0.2] }, { embedding: [0.3, 0.4] }],
+        data: [{ embedding: vec(0.1) }, { embedding: vec(0.3) }],
       }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const vectors = await embed(["metin bir", "metin iki"]);
 
-    expect(vectors).toEqual([
-      [0.1, 0.2],
-      [0.3, 0.4],
-    ]);
+    expect(vectors).toEqual([vec(0.1), vec(0.3)]);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://api.groq.com/openai/v1/embeddings");
     expect(JSON.parse(init.body)).toEqual({

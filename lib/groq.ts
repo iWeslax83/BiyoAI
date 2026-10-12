@@ -1,31 +1,27 @@
 import { requireEnv } from "./env";
+import { ProviderError, kindForStatus } from "./provider-error";
+import { recordProviderConfigError, recordProviderOk } from "./provider-status";
+
+// Embeddings go through lib/embeddings.ts so they can use a different
+// provider than chat. Re-exported here for existing callers.
+export { embed } from "./embeddings";
 
 const BASE_URL = "https://api.groq.com/openai/v1";
 
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
-// Whether the Groq env vars this module needs are present. Checked lazily
-// (not at import time) so it fails fast on the first real Groq call rather
-// than an unset key silently producing a 401 that shows up to students as an
-// unhelpful generic "system busy" message. Also used by /api/health to
-// report Groq configuration status without making a live API call.
+// Whether the Groq chat env vars are present. Checked lazily (not at import
+// time) so it fails fast on the first real Groq call rather than an unset key
+// silently producing a 401. Also used by /api/health to report configuration
+// status without making a live API call.
 export function hasGroqConfig(): boolean {
-  return Boolean(
-    process.env.GROQ_API_KEY &&
-    process.env.GROQ_CHAT_MODEL &&
-    process.env.GROQ_EMBED_MODEL,
-  );
+  return Boolean(process.env.GROQ_API_KEY && process.env.GROQ_CHAT_MODEL);
 }
 
-function requireGroqConfig(): {
-  apiKey: string;
-  chatModel: string;
-  embedModel: string;
-} {
+function requireChatConfig(): { apiKey: string; chatModel: string } {
   return {
     apiKey: requireEnv("GROQ_API_KEY"),
     chatModel: requireEnv("GROQ_CHAT_MODEL"),
-    embedModel: requireEnv("GROQ_EMBED_MODEL"),
   };
 }
 
@@ -44,23 +40,17 @@ async function groqFetch<T>(
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Groq API error ${res.status}: ${text}`);
+    const message = `Groq API error ${res.status}: ${text}`;
+    const kind = kindForStatus(res.status);
+    if (kind === "config") recordProviderConfigError("chat", message);
+    throw new ProviderError(message, kind);
   }
+  recordProviderOk("chat");
   return res.json();
 }
 
-export async function embed(texts: string[]): Promise<number[][]> {
-  const { apiKey, embedModel } = requireGroqConfig();
-  const json = await groqFetch<{ data: { embedding: number[] }[] }>(
-    "/embeddings",
-    apiKey,
-    { model: embedModel, input: texts },
-  );
-  return json.data.map((d) => d.embedding);
-}
-
 export async function chatComplete(messages: ChatMessage[]): Promise<string> {
-  const { apiKey, chatModel } = requireGroqConfig();
+  const { apiKey, chatModel } = requireChatConfig();
   const json = await groqFetch<{
     choices: { message: { content: string } }[];
   }>("/chat/completions", apiKey, {

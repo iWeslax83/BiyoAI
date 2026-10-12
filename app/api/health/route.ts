@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { hasGroqConfig } from "@/lib/groq";
+import { hasEmbeddingConfig } from "@/lib/embeddings";
 import { kickPendingSources } from "@/lib/pending";
 
 export async function GET() {
@@ -8,13 +9,17 @@ export async function GET() {
   // the env vars are set (no live API call, that would be slow and burn
   // quota on every health check poll).
   const groq = hasGroqConfig();
+  const embeddings = hasEmbeddingConfig();
   try {
     await query("SELECT 1");
     // The healthcheck cron polls this endpoint, which makes it a natural
     // heartbeat for retrying sources that were saved while offline.
-    if (groq) kickPendingSources();
-    return NextResponse.json({ ok: true, db: true, groq });
+    if (embeddings) kickPendingSources();
+    return NextResponse.json({ ok: true, db: true, groq, embeddings });
   } catch {
-    return NextResponse.json({ ok: false, db: false, groq }, { status: 503 });
+    return NextResponse.json(
+      { ok: false, db: false, groq, embeddings },
+      { status: 503 },
+    );
   }
 }

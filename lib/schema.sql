@@ -11,13 +11,18 @@ CREATE TABLE IF NOT EXISTS sources (
   title TEXT NOT NULL,
   kind TEXT NOT NULL CHECK (kind IN ('pdf', 'text', 'link')),
   raw_text TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('ready', 'pending')),
+  status TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('ready', 'pending', 'failed')),
+  error TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Databases created before the status column existed.
-ALTER TABLE sources ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ready'
-  CHECK (status IN ('ready', 'pending'));
+-- Databases created before the status/error columns existed or before the
+-- 'failed' status was added. Safe to run repeatedly.
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ready';
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS error TEXT;
+ALTER TABLE sources DROP CONSTRAINT IF EXISTS sources_status_check;
+ALTER TABLE sources ADD CONSTRAINT sources_status_check
+  CHECK (status IN ('ready', 'pending', 'failed'));
 
 CREATE TABLE IF NOT EXISTS chunks (
   id SERIAL PRIMARY KEY,

@@ -7,8 +7,13 @@ type Source = {
   id: number;
   title: string;
   kind: SourceKind;
-  status: "ready" | "pending";
+  status: "ready" | "pending" | "failed";
+  error: string | null;
   created_at: string;
+};
+type ProviderStatus = {
+  embeddings: { ok: boolean; error: string | null };
+  chat: { ok: boolean; error: string | null };
 };
 type QaLogEntry = {
   id: number;
@@ -49,6 +54,8 @@ async function parseNotice(res: Response): Promise<string | null> {
 
 export default function OgretmenPage() {
   const [sources, setSources] = useState<Source[]>([]);
+  const [provider, setProvider] = useState<ProviderStatus | null>(null);
+  const [retryingId, setRetryingId] = useState<number | null>(null);
   const [kind, setKind] = useState<SourceKind>("text");
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
@@ -70,6 +77,7 @@ export default function OgretmenPage() {
     const res = await fetch("/api/sources");
     const body = await res.json();
     setSources(body.sources ?? []);
+    setProvider(body.provider ?? null);
   }
 
   useEffect(() => {
@@ -84,6 +92,7 @@ export default function OgretmenPage() {
         const qaLogBody = await qaLogRes.json();
         if (cancelled) return;
         setSources(sourcesBody.sources ?? []);
+        setProvider(sourcesBody.provider ?? null);
         setQaLog(qaLogBody.entries ?? []);
       } catch {
         if (!cancelled) {
@@ -107,6 +116,7 @@ export default function OgretmenPage() {
         const res = await fetch("/api/sources");
         const body = await res.json();
         setSources(body.sources ?? []);
+        setProvider(body.provider ?? null);
       } catch {
         // network still down: try again on the next tick
       }
@@ -177,6 +187,8 @@ export default function OgretmenPage() {
           : await fetch("/api/sources", buildCreateRequest());
       if (!res.ok && res.status !== 202) {
         setError(await parseErrorMessage(res));
+        // A rejected source is kept in the list as failed, show it there.
+        if (res.status === 422) await loadSources();
         return;
       }
       setError(null);
@@ -208,6 +220,23 @@ export default function OgretmenPage() {
       setFile(null);
     } catch {
       setError("Kaynak açılamadı. Lütfen tekrar deneyin.");
+    }
+  }
+
+  async function retrySource(id: number) {
+    setRetryingId(id);
+    try {
+      const res = await fetch(`/api/sources/${id}/retry`, { method: "POST" });
+      if (!res.ok) {
+        setError(await parseErrorMessage(res));
+        return;
+      }
+      setError(null);
+      await loadSources();
+    } catch {
+      setError("Bir hata oluştu. Lütfen tekrar deneyin.");
+    } finally {
+      setRetryingId(null);
     }
   }
 
@@ -247,6 +276,13 @@ export default function OgretmenPage() {
       <h1 className="ogretmen-title">Kaynak Yönetimi</h1>
       {error && <p className="ogretmen-error">{error}</p>}
       {notice && <p className="ogretmen-notice">{notice}</p>}
+      {provider && !provider.embeddings.ok && (
+        <p className="ogretmen-error">
+          Yapay zeka servisi ayarı hatalı, kaynaklar işlenemiyor. Ayar
+          düzeltilince bekleyen kaynaklar otomatik işlenir. Ayrıntı:{" "}
+          {provider.embeddings.error}
+        </p>
+      )}
 
       <section className="ogretmen-section">
         <h2 className="ogretmen-section-title">
@@ -356,14 +392,30 @@ export default function OgretmenPage() {
                       <span className="ogretmen-status ogretmen-status-pending">
                         İşlenmeyi bekliyor
                       </span>
+                    ) : s.status === "failed" ? (
+                      <span className="ogretmen-status ogretmen-status-failed">
+                        İşlenemedi
+                      </span>
                     ) : (
                       <span className="ogretmen-status ogretmen-status-ready">
                         Hazır
                       </span>
                     )}
                   </span>
+                  {s.status === "failed" && s.error && (
+                    <span className="ogretmen-source-reason">{s.error}</span>
+                  )}
                 </div>
                 <div className="ogretmen-source-actions">
+                  {s.status === "failed" && (
+                    <button
+                      className="ogretmen-button"
+                      onClick={() => retrySource(s.id)}
+                      disabled={retryingId === s.id}
+                    >
+                      {retryingId === s.id ? "Deneniyor..." : "Yeniden dene"}
+                    </button>
+                  )}
                   <button
                     className="ogretmen-button"
                     onClick={() => startEditing(s.id)}

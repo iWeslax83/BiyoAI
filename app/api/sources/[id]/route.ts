@@ -3,6 +3,7 @@ import { query } from "@/lib/db";
 import { isValidSession } from "@/lib/auth";
 import { clearCache } from "@/lib/cache";
 import { ingestSource } from "@/lib/ingest";
+import { recordIngestFailure } from "@/lib/source-status";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest, context: Context) {
   if (id === null) return notFound();
 
   const [source] = await query(
-    "SELECT id, title, kind, status, raw_text FROM sources WHERE id = $1",
+    "SELECT id, title, kind, status, error, raw_text FROM sources WHERE id = $1",
     [id],
   );
   if (!source) return notFound();
@@ -75,7 +76,7 @@ export async function PATCH(req: NextRequest, context: Context) {
   // it out of retrieval and lets lib/pending.ts retry if Groq is unreachable.
   const [updated] = await query<{ id: number }>(
     `UPDATE sources
-     SET title = COALESCE(NULLIF($2, ''), title), raw_text = $3, status = 'pending'
+     SET title = COALESCE(NULLIF($2, ''), title), raw_text = $3, status = 'pending', error = NULL
      WHERE id = $1
      RETURNING id`,
     [id, title, text],
@@ -86,11 +87,21 @@ export async function PATCH(req: NextRequest, context: Context) {
 
   try {
     const chunkCount = await ingestSource(id, text);
-    await query("UPDATE sources SET status = 'ready' WHERE id = $1", [id]);
+    await query(
+      "UPDATE sources SET status = 'ready', error = NULL WHERE id = $1",
+      [id],
+    );
     clearCache();
     return NextResponse.json({ id, chunkCount, status: "ready" });
   } catch (err) {
     console.error("sources: re-ingest failed", err);
+    const outcome = await recordIngestFailure(id, err);
+    if (outcome.status === "failed") {
+      return NextResponse.json(
+        { id, status: "failed", error: outcome.message },
+        { status: 422 },
+      );
+    }
     return NextResponse.json(
       {
         id,

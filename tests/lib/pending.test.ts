@@ -15,6 +15,7 @@ const clearCacheMock = vi.fn();
 vi.mock("../../lib/cache", () => ({ clearCache: () => clearCacheMock() }));
 
 import { processPendingSources } from "../../lib/pending";
+import { ProviderError } from "../../lib/provider-error";
 
 function sqlCalls(fragment: string) {
   return queryMock.mock.calls.filter(([sql]) => sql.includes(fragment));
@@ -93,5 +94,46 @@ describe("processPendingSources", () => {
     expect(second).toBe(0);
     expect(firstResult).toBe(1);
     expect(ingestMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks a source failed when the provider rejects its content, and keeps going", async () => {
+    queryMock.mockImplementation(async (sql) => {
+      if (sql.includes("FROM sources WHERE status = 'pending'")) {
+        return [
+          { id: 1, raw_text: "bir" },
+          { id: 2, raw_text: "iki" },
+        ];
+      }
+      return [];
+    });
+    ingestMock
+      .mockRejectedValueOnce(new ProviderError("too long", "input"))
+      .mockResolvedValueOnce(1);
+
+    const processed = await processPendingSources();
+
+    expect(processed).toBe(1);
+    const failedCall = sqlCalls("SET status = 'failed'")[0];
+    expect(failedCall[1]).toEqual([1, "too long"]);
+    expect(ingestMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves sources pending and stops when the provider is misconfigured", async () => {
+    queryMock.mockImplementation(async (sql) => {
+      if (sql.includes("FROM sources WHERE status = 'pending'")) {
+        return [
+          { id: 1, raw_text: "bir" },
+          { id: 2, raw_text: "iki" },
+        ];
+      }
+      return [];
+    });
+    ingestMock.mockRejectedValue(new ProviderError("bad key", "config"));
+
+    const processed = await processPendingSources();
+
+    expect(processed).toBe(0);
+    expect(ingestMock).toHaveBeenCalledTimes(1);
+    expect(sqlCalls("SET status = 'failed'")).toHaveLength(0);
   });
 });

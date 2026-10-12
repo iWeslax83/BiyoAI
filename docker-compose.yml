@@ -29,5 +29,17 @@ services:
     ports:
       - "3000:3000"
 
+  # Optional: runs embeddings on the school PC so question text never leaves
+  # it for that step. Start with: docker compose --profile local-embeddings up -d
+  # then pull the model once (see OPERATIONS.md) and set EMBED_BASE_URL and
+  # EMBED_MODEL in .env.
+  ollama:
+    image: ollama/ollama
+    profiles: ["local-embeddings"]
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+
 volumes:
   db_data:
+  ollama_data:

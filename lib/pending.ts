@@ -1,6 +1,7 @@
 import { query } from "./db";
 import { ingestSource } from "./ingest";
 import { clearCache } from "./cache";
+import { recordIngestFailure } from "./source-status";
 
 let running = false;
 
@@ -21,11 +22,17 @@ export async function processPendingSources(): Promise<number> {
         // A previous attempt may have inserted some chunks before failing.
         await query("DELETE FROM chunks WHERE source_id = $1", [source.id]);
         await ingestSource(source.id, source.raw_text);
-        await query("UPDATE sources SET status = 'ready' WHERE id = $1", [
-          source.id,
-        ]);
+        await query(
+          "UPDATE sources SET status = 'ready', error = NULL WHERE id = $1",
+          [source.id],
+        );
         processed++;
       } catch (err) {
+        const outcome = await recordIngestFailure(source.id, err);
+        // Content the provider rejects will not get better by waiting: the
+        // source is now 'failed', move on to the next one. Anything else
+        // (network down, bad key) affects every source, so stop here.
+        if (outcome.status === "failed") continue;
         console.error("pending: ingest still failing", source.id, err);
         break;
       }

@@ -21,6 +21,7 @@ const clearCacheMock = vi.fn();
 vi.mock("@/lib/cache", () => ({ clearCache: () => clearCacheMock() }));
 
 import { GET, PATCH } from "../../app/api/sources/[id]/route";
+import { ProviderError } from "../../lib/provider-error";
 
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
 
@@ -108,6 +109,17 @@ describe("/api/sources/[id]", () => {
     expect(res.status).toBe(202);
     expect((await res.json()).status).toBe("pending");
     expect(sqlIncludes("SET status = 'ready'")).toBe(false);
+  });
+
+  it("PATCH marks the source failed and answers 422 when the provider rejects the text", async () => {
+    queryMock.mockResolvedValue([{ id: 4 }]);
+    ingestMock.mockRejectedValue(new ProviderError("too long", "input"));
+
+    const res = await PATCH(patchRequest({ text: "Yeni metin" }), params("4"));
+
+    expect(res.status).toBe(422);
+    expect((await res.json()).status).toBe("failed");
+    expect(sqlIncludes("SET status = 'failed'")).toBe(true);
   });
 
   it("PATCH returns 404 for an unknown source", async () => {

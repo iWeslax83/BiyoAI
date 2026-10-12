@@ -6,6 +6,8 @@ import { clearCache } from "@/lib/cache";
 import { kickPendingSources } from "@/lib/pending";
 import { LinkError, fetchLinkText } from "@/lib/fetch-link";
 import { extractPdfText } from "@/lib/pdf";
+import { recordIngestFailure } from "@/lib/source-status";
+import { getProviderStatus } from "@/lib/provider-status";
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
@@ -90,9 +92,9 @@ export async function GET(req: NextRequest) {
   }
   kickPendingSources();
   const sources = await query(
-    "SELECT id, title, kind, status, created_at FROM sources ORDER BY created_at DESC",
+    "SELECT id, title, kind, status, error, created_at FROM sources ORDER BY created_at DESC",
   );
-  return NextResponse.json({ sources });
+  return NextResponse.json({ sources, provider: getProviderStatus() });
 }
 
 export async function POST(req: NextRequest) {
@@ -115,22 +117,31 @@ export async function POST(req: NextRequest) {
 
   try {
     const chunkCount = await ingestSource(source.id, text);
-    await query("UPDATE sources SET status = 'ready' WHERE id = $1", [
-      source.id,
-    ]);
+    await query(
+      "UPDATE sources SET status = 'ready', error = NULL WHERE id = $1",
+      [source.id],
+    );
     clearCache();
     return NextResponse.json({ id: source.id, chunkCount, status: "ready" });
   } catch (err) {
     console.error("sources: ingest failed", err);
-    // Groq unreachable (network down, bad key, rate limit). Keep the source
-    // as 'pending': it is retried automatically (lib/pending.ts) once the
-    // connection is back, instead of making the teacher paste it again.
+    const outcome = await recordIngestFailure(source.id, err);
+    if (outcome.status === "failed") {
+      return NextResponse.json(
+        { id: source.id, status: "failed", error: outcome.message },
+        { status: 422 },
+      );
+    }
+    // Provider unreachable or misconfigured. Keep the source as 'pending': it
+    // is retried automatically (lib/pending.ts) once things work again,
+    // instead of making the teacher paste it again.
     return NextResponse.json(
       {
         id: source.id,
         status: "pending",
-        message:
-          "Kaynak kaydedildi ama şu an işlenemedi (internet bağlantısı olmayabilir). Bağlantı gelince otomatik işlenecek.",
+        message: outcome.configProblem
+          ? "Kaynak kaydedildi ama yapay zeka servisi ayarı geçersiz görünüyor. Ayar düzeltilince otomatik işlenecek."
+          : "Kaynak kaydedildi ama şu an işlenemedi (internet bağlantısı olmayabilir). Bağlantı gelince otomatik işlenecek.",
       },
       { status: 202 },
     );
