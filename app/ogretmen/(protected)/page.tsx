@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-type Source = { id: number; title: string; kind: string; created_at: string };
+type SourceKind = "text" | "pdf" | "link";
+type Source = {
+  id: number;
+  title: string;
+  kind: SourceKind;
+  status: "ready" | "pending";
+  created_at: string;
+};
 type QaLogEntry = {
   id: number;
   question: string;
@@ -10,6 +17,14 @@ type QaLogEntry = {
   grounded: boolean;
   created_at: string;
 };
+
+const KIND_LABELS: Record<SourceKind, string> = {
+  text: "Metin",
+  pdf: "PDF",
+  link: "Bağlantı",
+};
+
+const PENDING_REFRESH_MS = 15_000;
 
 async function parseErrorMessage(res: Response): Promise<string> {
   try {
@@ -23,15 +38,30 @@ async function parseErrorMessage(res: Response): Promise<string> {
   return "Bir hata oluştu. Lütfen tekrar deneyin.";
 }
 
+async function parseNotice(res: Response): Promise<string | null> {
+  try {
+    const body = await res.json();
+    return typeof body?.message === "string" ? body.message : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function OgretmenPage() {
   const [sources, setSources] = useState<Source[]>([]);
+  const [kind, setKind] = useState<SourceKind>("text");
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
+  const [url, setUrl] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const [qaLog, setQaLog] = useState<QaLogEntry[]>([]);
+  const [onlyUngrounded, setOnlyUngrounded] = useState(false);
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [sendingNoteId, setSendingNoteId] = useState<number | null>(null);
   const [qaLogError, setQaLogError] = useState<string | null>(null);
@@ -67,6 +97,23 @@ export default function OgretmenPage() {
     };
   }, []);
 
+  // Sources saved while offline are retried by the server. While any is still
+  // pending, refresh the list so it flips to ready without a manual reload.
+  const hasPending = sources.some((s) => s.status === "pending");
+  useEffect(() => {
+    if (!hasPending) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch("/api/sources");
+        const body = await res.json();
+        setSources(body.sources ?? []);
+      } catch {
+        // network still down: try again on the next tick
+      }
+    }, PENDING_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [hasPending]);
+
   async function sendNote(qaLogId: number) {
     const note = (notes[qaLogId] ?? "").trim();
     if (!note || sendingNoteId !== null) return;
@@ -89,26 +136,78 @@ export default function OgretmenPage() {
     }
   }
 
-  async function addSource() {
-    if (!title.trim() || !text.trim() || saving) return;
+  function resetForm() {
+    setTitle("");
+    setText("");
+    setUrl("");
+    setFile(null);
+    setEditingId(null);
+  }
+
+  function buildCreateRequest(): RequestInit {
+    if (kind === "pdf" && file) {
+      const form = new FormData();
+      form.set("file", file);
+      if (title.trim()) form.set("title", title.trim());
+      return { method: "POST", body: form };
+    }
+    const payload =
+      kind === "link"
+        ? { kind, url: url.trim(), title: title.trim() }
+        : { kind, title, text };
+    return {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    };
+  }
+
+  async function saveSource() {
+    if (saving) return;
     setSaving(true);
+    setNotice(null);
     try {
-      const res = await fetch("/api/sources", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, kind: "text", text }),
-      });
-      if (!res.ok) {
-        const message = await parseErrorMessage(res);
-        setError(message);
+      const res =
+        editingId !== null
+          ? await fetch(`/api/sources/${editingId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title, text }),
+            })
+          : await fetch("/api/sources", buildCreateRequest());
+      if (!res.ok && res.status !== 202) {
+        setError(await parseErrorMessage(res));
         return;
       }
       setError(null);
-      setTitle("");
-      setText("");
+      if (res.status === 202) setNotice(await parseNotice(res));
+      resetForm();
       await loadSources();
+    } catch {
+      setError("Bir hata oluştu. Lütfen tekrar deneyin.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function startEditing(id: number) {
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/sources/${id}`);
+      if (!res.ok) {
+        setError(await parseErrorMessage(res));
+        return;
+      }
+      const { source } = await res.json();
+      setError(null);
+      setEditingId(id);
+      setKind("text");
+      setTitle(source.title);
+      setText(source.raw_text);
+      setUrl("");
+      setFile(null);
+    } catch {
+      setError("Kaynak açılamadı. Lütfen tekrar deneyin.");
     }
   }
 
@@ -122,38 +221,122 @@ export default function OgretmenPage() {
         return;
       }
       setError(null);
+      if (editingId === id) resetForm();
       await loadSources();
     } finally {
       setDeletingId(null);
     }
   }
 
+  const editing = editingId !== null;
+  const canSave = editing
+    ? Boolean(title.trim() && text.trim())
+    : kind === "text"
+      ? Boolean(title.trim() && text.trim())
+      : kind === "link"
+        ? Boolean(url.trim())
+        : Boolean(file);
+
+  const ungroundedCount = qaLog.filter((e) => !e.grounded).length;
+  const visibleQaLog = onlyUngrounded
+    ? qaLog.filter((e) => !e.grounded)
+    : qaLog;
+
   return (
     <main className="ogretmen-page">
       <h1 className="ogretmen-title">Kaynak Yönetimi</h1>
       {error && <p className="ogretmen-error">{error}</p>}
+      {notice && <p className="ogretmen-notice">{notice}</p>}
 
       <section className="ogretmen-section">
+        <h2 className="ogretmen-section-title">
+          {editing ? "Kaynağı düzenle" : "Kaynak ekle"}
+        </h2>
+
+        {!editing && (
+          <div className="ogretmen-tabs" role="group" aria-label="Kaynak türü">
+            {(Object.keys(KIND_LABELS) as SourceKind[]).map((k) => (
+              <button
+                key={k}
+                type="button"
+                className="ogretmen-tab"
+                aria-pressed={kind === k}
+                onClick={() => setKind(k)}
+              >
+                {KIND_LABELS[k]}
+              </button>
+            ))}
+          </div>
+        )}
+
         <input
           className="ogretmen-input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Başlık"
+          placeholder={
+            !editing && kind !== "text" ? "Başlık (isteğe bağlı)" : "Başlık"
+          }
+          aria-label="Başlık"
         />
-        <textarea
-          className="ogretmen-textarea"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Kaynak metni yapıştır..."
-          rows={6}
-        />
-        <button
-          className="ogretmen-button ogretmen-button-primary"
-          onClick={addSource}
-          disabled={saving || !title.trim() || !text.trim()}
-        >
-          {saving ? "Ekleniyor..." : "Kaynak Ekle"}
-        </button>
+
+        {(editing || kind === "text") && (
+          <textarea
+            className="ogretmen-textarea"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Kaynak metni yapıştır..."
+            aria-label="Kaynak metni"
+            rows={6}
+          />
+        )}
+
+        {!editing && kind === "link" && (
+          <input
+            className="ogretmen-input"
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://..."
+            aria-label="Bağlantı adresi"
+          />
+        )}
+
+        {!editing && kind === "pdf" && (
+          <label className="ogretmen-file">
+            <span className="ogretmen-file-name">
+              {file ? file.name : "PDF dosyası seç (en fazla 10 MB)"}
+            </span>
+            <input
+              className="ogretmen-file-input"
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
+        )}
+
+        <div className="ogretmen-form-actions">
+          <button
+            className="ogretmen-button ogretmen-button-primary"
+            onClick={saveSource}
+            disabled={saving || !canSave}
+          >
+            {saving
+              ? "Kaydediliyor..."
+              : editing
+                ? "Değişiklikleri Kaydet"
+                : "Kaynak Ekle"}
+          </button>
+          {editing && (
+            <button
+              className="ogretmen-button"
+              onClick={resetForm}
+              disabled={saving}
+            >
+              Vazgeç
+            </button>
+          )}
+        </div>
       </section>
 
       <section className="ogretmen-section">
@@ -164,14 +347,38 @@ export default function OgretmenPage() {
           <ul className="ogretmen-source-list">
             {sources.map((s) => (
               <li key={s.id} className="ogretmen-source-item">
-                <span className="ogretmen-source-title">{s.title}</span>
-                <button
-                  className="ogretmen-delete-button"
-                  onClick={() => removeSource(s.id)}
-                  disabled={deletingId === s.id}
-                >
-                  {deletingId === s.id ? "Siliniyor..." : "Sil"}
-                </button>
+                <div className="ogretmen-source-info">
+                  <span className="ogretmen-source-title">{s.title}</span>
+                  <span className="ogretmen-source-meta">
+                    {KIND_LABELS[s.kind] ?? s.kind}
+                    {" · "}
+                    {s.status === "pending" ? (
+                      <span className="ogretmen-status ogretmen-status-pending">
+                        İşlenmeyi bekliyor
+                      </span>
+                    ) : (
+                      <span className="ogretmen-status ogretmen-status-ready">
+                        Hazır
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="ogretmen-source-actions">
+                  <button
+                    className="ogretmen-button"
+                    onClick={() => startEditing(s.id)}
+                    disabled={saving || deletingId === s.id}
+                  >
+                    Düzenle
+                  </button>
+                  <button
+                    className="ogretmen-delete-button"
+                    onClick={() => removeSource(s.id)}
+                    disabled={deletingId === s.id}
+                  >
+                    {deletingId === s.id ? "Siliniyor..." : "Sil"}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -181,11 +388,25 @@ export default function OgretmenPage() {
       <section className="ogretmen-section">
         <h2 className="ogretmen-section-title">Son Sorular</h2>
         {qaLogError && <p className="ogretmen-error">{qaLogError}</p>}
+        {qaLog.length > 0 && (
+          <label className="ogretmen-filter">
+            <input
+              type="checkbox"
+              checked={onlyUngrounded}
+              onChange={(e) => setOnlyUngrounded(e.target.checked)}
+            />
+            <span>Sadece kaynaksız cevapları göster ({ungroundedCount})</span>
+          </label>
+        )}
         {qaLog.length === 0 ? (
           <p className="ogretmen-source-empty">Henüz soru sorulmadı.</p>
+        ) : visibleQaLog.length === 0 ? (
+          <p className="ogretmen-source-empty">
+            Kaynaksız cevap yok. Son sorular kaynaklarla cevaplanmış.
+          </p>
         ) : (
           <ul className="ogretmen-qalog-list">
-            {qaLog.map((entry) => (
+            {visibleQaLog.map((entry) => (
               <li key={entry.id} className="ogretmen-qalog-item">
                 <p className="ogretmen-qalog-question">{entry.question}</p>
                 <p className="ogretmen-qalog-answer">{entry.answer}</p>

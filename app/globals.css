@@ -436,6 +436,148 @@ textarea:focus-visible {
   padding: 0.5rem 1rem;
 }
 
+.ogretmen-notice {
+  font-size: 1.1rem;
+  color: var(--color-warn);
+  line-height: 1.5;
+  padding: var(--space-2);
+  border: 1px solid var(--color-warn-border);
+  border-radius: 6px;
+}
+
+.ogretmen-tabs {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.ogretmen-tab {
+  flex: 1;
+  min-width: 96px;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ogretmen-tab[aria-pressed="true"] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.ogretmen-file {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: var(--space-2);
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.ogretmen-file:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.ogretmen-file-name {
+  word-break: break-word;
+}
+
+.ogretmen-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.ogretmen-form-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ogretmen-form-actions .ogretmen-button {
+  flex: 1;
+  min-width: 140px;
+}
+
+.ogretmen-form-actions .ogretmen-button:not(.ogretmen-button-primary) {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.ogretmen-source-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.ogretmen-source-meta {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.ogretmen-status::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ogretmen-status-ready {
+  color: var(--color-accent);
+}
+
+.ogretmen-status-pending {
+  color: var(--color-warn);
+}
+
+.ogretmen-source-actions {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.ogretmen-source-actions .ogretmen-button {
+  width: auto;
+  padding: 0.5rem 1rem;
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.ogretmen-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.ogretmen-filter input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--color-accent);
+}
+
 @media (max-width: 480px) {
   .ogretmen-page {
     padding: var(--space-3) var(--space-2);
