@@ -26,6 +26,14 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("Örneklerle anlat");
   });
 
+  it("tells the model that newer teacher notes override older ones", () => {
+    const prompt = buildSystemPrompt(
+      [{ id: 1, sourceId: 1, content: "x" }],
+      [{ id: 1, note: "Örneklerle anlat" }],
+    );
+    expect(prompt).toContain("en yeni");
+  });
+
   it("says no matching source when chunks is empty", () => {
     const prompt = buildSystemPrompt([], []);
     expect(prompt).toContain("bilmiyorum");

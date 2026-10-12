@@ -22,8 +22,11 @@ CREATE TABLE IF NOT EXISTS chunks (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS chunks_embedding_idx ON chunks
-  USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+-- No vector index on purpose. An ivfflat index scans only one list by
+-- default, which on a small corpus (a single teacher's notes) can silently
+-- miss relevant rows. An exact sequential scan is exact and still takes
+-- milliseconds at this size. DROP covers databases created before this change.
+DROP INDEX IF EXISTS chunks_embedding_idx;
 
 CREATE TABLE IF NOT EXISTS qa_log (
   id SERIAL PRIMARY KEY,
@@ -42,5 +45,4 @@ CREATE TABLE IF NOT EXISTS feedback (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS feedback_embedding_idx ON feedback
-  USING ivfflat (embedding vector_cosine_ops) WITH (lists = 50);
+DROP INDEX IF EXISTS feedback_embedding_idx;

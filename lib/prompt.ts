@@ -12,7 +12,7 @@ export function buildSystemPrompt(
 
   const feedbackBlock =
     feedback.length > 0
-      ? `\n\nÖğretmenin bu tür sorular için notları:\n${feedback.map((f) => `- ${f.note}`).join("\n")}`
+      ? `\n\nÖğretmenin bu tür sorular için notları (en yeni not en üstte; notlar birbiriyle çelişirse en yeni olanı uygula):\n${feedback.map((f) => `- ${f.note}`).join("\n")}`
       : "";
 
   return `Sen 11. sınıf biyoloji dersi için bir öğretim asistanısın.

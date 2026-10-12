@@ -70,6 +70,29 @@ beforeAll(async () => {
     `INSERT INTO feedback (qa_log_id, note, embedding) VALUES ($1, $2, $3)`,
     [qa.id, "Mitokondri konusunda örnek şema ekle", decoyFeedbackEmbedding],
   );
+
+  // Two notes on the same topic with different dates. The older one is
+  // inserted first so that ordering by id or by insertion can't pass the
+  // recency test by accident.
+  const conflictEmbedding = JSON.stringify(oneHot(7));
+  await query(
+    `INSERT INTO feedback (qa_log_id, note, embedding, created_at) VALUES ($1, $2, $3, $4)`,
+    [
+      qa.id,
+      "ESKI-NOT hücre zarını tek katlı anlat",
+      conflictEmbedding,
+      "2026-01-01T00:00:00Z",
+    ],
+  );
+  await query(
+    `INSERT INTO feedback (qa_log_id, note, embedding, created_at) VALUES ($1, $2, $3, $4)`,
+    [
+      qa.id,
+      "YENI-NOT hücre zarını sıvı mozaik modelle anlat",
+      conflictEmbedding,
+      "2026-02-01T00:00:00Z",
+    ],
+  );
 });
 
 describe("retrieve", () => {
@@ -108,5 +131,20 @@ describe("retrieve", () => {
     const top1 = await retrieveFeedback(queryVector, 1);
     expect(top1.length).toBe(1);
     expect(top1[0].note).toContain("klorofil");
+  });
+
+  it("retrieveFeedback drops notes past the distance threshold", async () => {
+    const unrelatedVector = new Array(768).fill(0);
+    unrelatedVector[100] = 1;
+    const results = await retrieveFeedback(unrelatedVector, 5);
+    expect(results).toEqual([]);
+  });
+
+  it("retrieveFeedback puts the newest note first when notes conflict", async () => {
+    const results = await retrieveFeedback(oneHot(7), 5);
+    expect(results.map((r) => r.note.split(" ")[0])).toEqual([
+      "YENI-NOT",
+      "ESKI-NOT",
+    ]);
   });
 });
