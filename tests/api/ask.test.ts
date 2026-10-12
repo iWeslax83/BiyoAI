@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-const answerQuestionMock = vi.fn(async (q: string) => ({
+const answerQuestionMock = vi.fn(async (q: string, _options?: unknown) => ({
   answer: `cevap: ${q}`,
   grounded: true,
   sourceIds: [1],
 }));
 vi.mock("@/lib/rag", () => ({
-  answerQuestion: (q: string) => answerQuestionMock(q),
+  answerQuestion: (q: string, options?: unknown) =>
+    answerQuestionMock(q, options),
 }));
 
 import { POST } from "../../app/api/ask/route";
@@ -104,5 +105,65 @@ describe("POST /api/ask", () => {
     expect(res.status).toBe(503);
     const body = await res.json();
     expect(body.error).toContain("Sistem şu anda yoğun");
+  });
+
+  it("passes the previous exchange to the model and skips the cache", async () => {
+    const history = [{ question: "Mitoz nedir?", answer: "Hücre bölünmesi." }];
+
+    const first = await POST(
+      makeRequest(
+        { question: "Peki ya mayozda? (devam)", history },
+        "10.5.0.1",
+      ),
+    );
+    const second = await POST(
+      makeRequest(
+        { question: "Peki ya mayozda? (devam)", history },
+        "10.5.0.1",
+      ),
+    );
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(answerQuestionMock).toHaveBeenCalledTimes(2);
+    expect(answerQuestionMock).toHaveBeenCalledWith(
+      "Peki ya mayozda? (devam)",
+      { history },
+    );
+  });
+
+  it("keeps only the two most recent exchanges and drops malformed entries", async () => {
+    const turn = (n: number) => ({
+      question: `Soru ${n}`,
+      answer: `Cevap ${n}`,
+    });
+
+    await POST(
+      makeRequest(
+        {
+          question: "Son soru (sınır)",
+          history: [turn(1), { question: 5 }, turn(2), turn(3)],
+        },
+        "10.5.0.2",
+      ),
+    );
+
+    expect(answerQuestionMock).toHaveBeenCalledWith("Son soru (sınır)", {
+      history: [turn(2), turn(3)],
+    });
+  });
+
+  it("rejects the request when a history question is inappropriate", async () => {
+    const res = await POST(
+      makeRequest(
+        {
+          question: "Peki ya mayozda? (filtre)",
+          history: [{ question: "siktir git", answer: "x" }],
+        },
+        "10.5.0.3",
+      ),
+    );
+    expect(res.status).toBe(400);
+    expect(answerQuestionMock).not.toHaveBeenCalled();
   });
 });

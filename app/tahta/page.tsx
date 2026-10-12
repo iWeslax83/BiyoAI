@@ -21,11 +21,16 @@ async function parseErrorMessage(res: Response): Promise<string> {
   return "Bir hata oluştu. Lütfen tekrar deneyin.";
 }
 
+type Exchange = { question: string; answer: string };
+
 export default function TahtaPage() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Verified answers of this conversation, sent along so a follow-up like
+  // "peki ya mayozda?" can be understood. "Temizle" starts a new topic.
+  const [history, setHistory] = useState<Exchange[]>([]);
 
   async function ask() {
     if (!question.trim() || loading) return;
@@ -36,13 +41,19 @@ export default function TahtaPage() {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, history: history.slice(-2) }),
       });
       if (!res.ok) {
         setError(await parseErrorMessage(res));
         return;
       }
-      setAnswer(await res.json());
+      const result: Answer = await res.json();
+      setAnswer(result);
+      if (result.grounded) {
+        setHistory((prev) =>
+          [...prev, { question, answer: result.answer }].slice(-2),
+        );
+      }
     } catch {
       setError("Bir hata oluştu. Lütfen tekrar deneyin.");
     } finally {
@@ -66,6 +77,12 @@ export default function TahtaPage() {
           rows={3}
           placeholder="Biyoloji ile ilgili sorunu yaz..."
         />
+        {history.length > 0 && (
+          <p className="tahta-hint">
+            Önceki soruların devamı olarak cevaplanır. Yeni bir konu için
+            Temizle&apos;ye bas.
+          </p>
+        )}
         <div className="tahta-button-row">
           <button
             className="tahta-button tahta-button-primary"
@@ -80,6 +97,7 @@ export default function TahtaPage() {
               setQuestion("");
               setAnswer(null);
               setError(null);
+              setHistory([]);
             }}
           >
             Temizle

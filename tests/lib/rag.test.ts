@@ -23,7 +23,7 @@ vi.mock("../../lib/db", () => ({
 
 import { answerQuestion } from "../../lib/rag";
 import { retrieveChunks } from "../../lib/retrieve";
-import { chatComplete } from "../../lib/groq";
+import { chatComplete, embed } from "../../lib/groq";
 
 describe("answerQuestion", () => {
   it("returns a grounded answer with cited source ids and logs it", async () => {
@@ -101,5 +101,36 @@ describe("answerQuestion", () => {
     expect(
       queryMock.mock.calls.some(([sql]) => sql.includes("INSERT INTO qa_log")),
     ).toBe(false);
+  });
+
+  it("uses the previous exchange when retrieving and when asking the model", async () => {
+    vi.mocked(embed).mockClear();
+    vi.mocked(chatComplete).mockClear();
+
+    await answerQuestion("Peki ya mayozda?", {
+      history: [
+        { question: "Mitoz nedir?", answer: "Mitoz hücre bölünmesidir." },
+      ],
+    });
+
+    const embedded = vi.mocked(embed).mock.calls[0][0][0];
+    expect(embedded).toContain("Mitoz nedir?");
+    expect(embedded).toContain("Peki ya mayozda?");
+
+    const messages = vi.mocked(chatComplete).mock.calls[0][0];
+    expect(messages.map((m) => m.role)).toEqual([
+      "system",
+      "user",
+      "assistant",
+      "user",
+    ]);
+    expect(messages[1].content).toBe("Mitoz nedir?");
+    expect(messages[3].content).toBe("Peki ya mayozda?");
+  });
+
+  it("embeds just the question when there is no history", async () => {
+    vi.mocked(embed).mockClear();
+    await answerQuestion("Mitoz nedir?");
+    expect(vi.mocked(embed).mock.calls[0][0]).toEqual(["Mitoz nedir?"]);
   });
 });

@@ -234,6 +234,12 @@ textarea:focus-visible {
   }
 }
 
+.tahta-hint {
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
 /* /ogretmen teacher panel */
 
 .ogretmen-login-page {

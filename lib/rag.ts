@@ -13,7 +13,12 @@ export type RagAnswer = {
   supportScore: number;
 };
 
+export type Exchange = { question: string; answer: string };
+
 type AnswerOptions = {
+  // Earlier question/answer pairs of the same conversation, oldest first, so
+  // a follow-up like "and in meiosis?" can be understood.
+  history?: Exchange[];
   // Set to false for evaluation runs so test questions do not end up in the
   // teacher's question log.
   log?: boolean;
@@ -26,7 +31,12 @@ export async function answerQuestion(
   // Embed the question once and reuse the vector for both retrieval calls,
   // instead of each independently calling Groq's embeddings endpoint for the
   // identical text (2x the calls, latency, and rate-limit consumption).
-  const [vector] = await embed([question]);
+  const history = options.history ?? [];
+  // A follow-up is often meaningless on its own ("peki ya mayozda?"), so
+  // search with the previous question as well.
+  const lastQuestion = history[history.length - 1]?.question;
+  const searchText = lastQuestion ? `${lastQuestion}\n${question}` : question;
+  const [vector] = await embed([searchText]);
   const [chunks, feedback] = await Promise.all([
     retrieveChunks(vector, 5),
     retrieveFeedback(vector, 5),
@@ -35,6 +45,10 @@ export async function answerQuestion(
   const systemPrompt = buildSystemPrompt(chunks, feedback);
   const answer = await chatComplete([
     { role: "system", content: systemPrompt },
+    ...history.flatMap((turn) => [
+      { role: "user" as const, content: turn.question },
+      { role: "assistant" as const, content: turn.answer },
+    ]),
     { role: "user", content: question },
   ]);
 
