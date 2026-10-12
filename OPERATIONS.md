@@ -130,3 +130,23 @@ scripts/backup.sh && scripts/restore-check.sh
 
 Çıktıda kaynak, parça, soru ve not sayıları ile "Geri yükleme başarılı." görülmelidir. Bunu kurulumdan sonra ve ara sıra tekrarla.
 
+## TLS sertifika hatası (SELF_SIGNED_CERT_IN_CHAIN)
+
+Bazı okul ve kamu ağları (ör. MEB ağı) HTTPS trafiğini denetler: Groq gibi sitelere giderken sertifikayı kendi CA'larıyla yeniden imzalarlar. Tarayıcı ve `curl` bu CA'ya güvenir, uygulamanın Docker imajı güvenmez. Belirtiler: kaynak eklenmez, sorular "sistem yoğun" cevabı verir, panelde şu tür bir uyarı çıkar:
+
+```
+TLS sertifikası doğrulanamadı (SELF_SIGNED_CERT_IN_CHAIN)
+```
+
+Çözüm (teknik personel):
+
+```
+cd /opt/biyoai
+scripts/export-ca.sh
+docker compose up -d --force-recreate app
+```
+
+Betik ağın sertifika zincirinin en üstündeki sertifikayı `certs/extra-ca.pem` dosyasına yazar ve konu/parmak izini gösterir. Bu dosya "ağın ürettiği sertifikalara güven" demektir, o yüzden parmak izini ağ yöneticisiyle doğrula.
+
+Gizlilik notu: ağ HTTPS'i bu şekilde yeniden imzalıyorsa, ağ işletmecisi öğrenci sorularını ve kaynak metinlerini Groq'a giderken çözebilir. Bu, KVKK bilgilendirmesinde ve "veri yurt dışına gidiyor" değerlendirmesinde ayrıca düşünülmelidir. Yerel embedding çalıştırmak (bu belgenin "Embedding servisi" bölümü) en azından arama adımındaki metinlerin ağdan geçmesini engeller. Sohbet modeli çağrısı yine Groq'a gider.
+

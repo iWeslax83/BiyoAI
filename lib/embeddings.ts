@@ -1,5 +1,6 @@
 import { ProviderError, kindForStatus } from "./provider-error";
 import { recordProviderConfigError, recordProviderOk } from "./provider-status";
+import { networkFailure } from "./network-error";
 
 // The vector column in lib/schema.sql is vector(768). A model with another
 // output size cannot be stored without changing the schema and re-embedding
@@ -65,10 +66,11 @@ export async function embed(texts: string[]): Promise<number[][]> {
       body: JSON.stringify({ model: config.model, input: texts }),
     });
   } catch (err) {
-    throw new ProviderError(
-      `Embedding sağlayıcısına ulaşılamadı: ${err instanceof Error ? err.message : String(err)}`,
-      "transient",
-    );
+    const failure = networkFailure(err, "Embedding sağlayıcısına");
+    if (failure.kind === "config") {
+      recordProviderConfigError("embeddings", failure.message);
+    }
+    throw failure;
   }
 
   if (!res.ok) {

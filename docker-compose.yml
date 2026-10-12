@@ -26,6 +26,11 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgres://biyoai:biyoai@db:5432/biyoai
+      # Extra CA for networks that inspect HTTPS (see certs/README.md). If the
+      # file does not exist Node only prints a warning at startup.
+      NODE_EXTRA_CA_CERTS: /certs/extra-ca.pem
+    volumes:
+      - ./certs:/certs:ro
     ports:
       - "3000:3000"
 

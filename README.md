@@ -138,3 +138,4 @@ docs/           tasarım belgesi ve uygulama planı
 - `scripts/backup.sh`: günlük `pg_dump`, son 30 yedek tutulur
 - `scripts/restore-check.sh`: en yeni yedeğin geri yüklenebildiğini geçici bir veritabanında doğrular
 - `scripts/install-ops.sh`: servisi, sağlık kontrolünü ve yedeği tek komutla kurar
+- `scripts/export-ca.sh`: HTTPS denetimi yapan ağlar için ağın CA sertifikasını kaydeder (`certs/README.md`)

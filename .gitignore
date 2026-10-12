@@ -48,3 +48,6 @@ next-env.d.ts
 
 # local database backups
 /backups/
+
+# network-specific CA certificates
+/certs/*.pem

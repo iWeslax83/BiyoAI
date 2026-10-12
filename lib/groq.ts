@@ -1,6 +1,7 @@
 import { requireEnv } from "./env";
 import { ProviderError, kindForStatus } from "./provider-error";
 import { recordProviderConfigError, recordProviderOk } from "./provider-status";
+import { networkFailure } from "./network-error";
 
 // Embeddings go through lib/embeddings.ts so they can use a different
 // provider than chat. Re-exported here for existing callers.
@@ -30,14 +31,23 @@ async function groqFetch<T>(
   apiKey: string,
   body: unknown,
 ): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    const failure = networkFailure(err, "Groq'a");
+    if (failure.kind === "config") {
+      recordProviderConfigError("chat", failure.message);
+    }
+    throw failure;
+  }
   if (!res.ok) {
     const text = await res.text();
     const message = `Groq API error ${res.status}: ${text}`;

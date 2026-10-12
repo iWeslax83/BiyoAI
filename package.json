@@ -10,7 +10,7 @@
     "seed:teacher": "tsx --env-file-if-exists=.env scripts/seed-teacher.ts",
     "lint": "eslint",
     "format": "prettier --write .",
-    "eval": "tsx --env-file-if-exists=.env scripts/eval.ts"
+    "eval": "tsx --use-system-ca --env-file-if-exists=.env scripts/eval.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -34,5 +34,8 @@
     "typescript": "^5",
     "vite": "^8.3.0",
     "vitest": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=22.15"
   }
 }

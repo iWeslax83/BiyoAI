@@ -63,4 +63,21 @@ describe("groq client", () => {
     ).rejects.toThrow("Groq API error 429: rate limited");
     vi.unstubAllGlobals();
   });
+
+  it("reports a TLS certificate problem as a configuration error", async () => {
+    const tlsError = new TypeError("fetch failed");
+    (tlsError as TypeError & { cause?: unknown }).cause = Object.assign(
+      new Error("self-signed certificate in certificate chain"),
+      { code: "SELF_SIGNED_CERT_IN_CHAIN" },
+    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(tlsError));
+
+    const error = await chatComplete([{ role: "user", content: "x" }]).catch(
+      (e) => e,
+    );
+
+    expect(error.kind).toBe("config");
+    expect(error.message).toContain("SELF_SIGNED_CERT_IN_CHAIN");
+    vi.unstubAllGlobals();
+  });
 });
