@@ -49,10 +49,19 @@ CREATE TABLE IF NOT EXISTS qa_log (
 
 CREATE TABLE IF NOT EXISTS feedback (
   id SERIAL PRIMARY KEY,
-  qa_log_id INTEGER NOT NULL REFERENCES qa_log(id) ON DELETE CASCADE,
+  qa_log_id INTEGER REFERENCES qa_log(id) ON DELETE SET NULL,
   note TEXT NOT NULL,
   embedding vector(768) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 DROP INDEX IF EXISTS feedback_embedding_idx;
+
+-- Teacher notes outlive the question they were written for: when old
+-- questions are purged (lib/retention.ts) the note stays, only the link is
+-- cleared. Upgrades databases created with NOT NULL ... ON DELETE CASCADE.
+ALTER TABLE feedback ALTER COLUMN qa_log_id DROP NOT NULL;
+ALTER TABLE feedback DROP CONSTRAINT IF EXISTS feedback_qa_log_id_fkey;
+ALTER TABLE feedback ADD CONSTRAINT feedback_qa_log_id_fkey
+  FOREIGN KEY (qa_log_id) REFERENCES qa_log(id) ON DELETE SET NULL;
+

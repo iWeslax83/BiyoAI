@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-const answerQuestionMock = vi.fn(async (q: string, _options?: unknown) => ({
+const answerQuestionMock = vi.fn<
+  (q: string, options?: unknown) => Promise<unknown>
+>(async (q) => ({
   answer: `cevap: ${q}`,
   grounded: true,
   sourceIds: [1],
