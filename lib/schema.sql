@@ -11,8 +11,13 @@ CREATE TABLE IF NOT EXISTS sources (
   title TEXT NOT NULL,
   kind TEXT NOT NULL CHECK (kind IN ('pdf', 'text', 'link')),
   raw_text TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('ready', 'pending')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Databases created before the status column existed.
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ready'
+  CHECK (status IN ('ready', 'pending'));
 
 CREATE TABLE IF NOT EXISTS chunks (
   id SERIAL PRIMARY KEY,

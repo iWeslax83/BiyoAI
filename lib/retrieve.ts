@@ -14,10 +14,11 @@ export async function retrieveChunks(
   k = 5,
 ): Promise<{ id: number; sourceId: number; content: string }[]> {
   return query(
-    `SELECT id, source_id AS "sourceId", content
-     FROM chunks
-     WHERE embedding <=> $1 < $3
-     ORDER BY embedding <=> $1
+    `SELECT c.id, c.source_id AS "sourceId", c.content
+     FROM chunks c
+     JOIN sources s ON s.id = c.source_id AND s.status = 'ready'
+     WHERE c.embedding <=> $1 < $3
+     ORDER BY c.embedding <=> $1
      LIMIT $2`,
     [JSON.stringify(vector), k, CHUNK_DISTANCE_THRESHOLD],
   );
