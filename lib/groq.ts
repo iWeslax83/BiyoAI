@@ -59,14 +59,25 @@ async function groqFetch<T>(
   return res.json();
 }
 
+// Some reasoning models return their thinking inline as <think>...</think>.
+// Students must only see the answer.
+function stripThinking(text: string): string {
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
+
 export async function chatComplete(messages: ChatMessage[]): Promise<string> {
   const { apiKey, chatModel } = requireChatConfig();
+  // Reasoning models (for example openai/gpt-oss-120b) answer faster with a
+  // low effort, which is enough for answering from provided sources. Only
+  // sent when configured: models without reasoning would reject it.
+  const reasoningEffort = process.env.GROQ_REASONING_EFFORT;
   const json = await groqFetch<{
     choices: { message: { content: string } }[];
   }>("/chat/completions", apiKey, {
     model: chatModel,
     messages,
     temperature: 0.2,
+    ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
   });
-  return json.choices[0].message.content;
+  return stripThinking(json.choices[0].message.content);
 }

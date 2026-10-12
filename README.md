@@ -29,7 +29,8 @@ Ek korumalar:
 | --- | --- |
 | Uygulama | Next.js 16 (App Router), React 19, TypeScript, Node 22 |
 | Veritabanı | Postgres 16 + pgvector (Docker Compose) |
-| LLM ve embedding | Groq API |
+| Sohbet modeli | Groq API |
+| Embedding | Yerel Ollama (`nomic-embed-text`), okul PC'sinde |
 | Kimlik doğrulama | Öğretmen şifresi (bcrypt) + imzalı oturum çerezi |
 | PDF | unpdf |
 | Test ve CI | Vitest, GitHub Actions |
@@ -70,9 +71,9 @@ npm run seed:teacher -- <sifre>
 | `DATABASE_URL` | Postgres bağlantı adresi |
 | `TEST_DATABASE_URL` | Sadece testler için. Adında `test` geçen, silinebilir bir veritabanı olmalı |
 | `GROQ_API_KEY` | Groq API anahtarı |
-| `GROQ_CHAT_MODEL` | Sohbet modeli (varsayılan `llama-3.3-70b-versatile`) |
-| `GROQ_EMBED_MODEL` | Groq üzerinden embedding modeli. Groq hesabında embedding modeli olduğundan emin ol |
-| `EMBED_BASE_URL`, `EMBED_MODEL`, `EMBED_API_KEY` | İsteğe bağlı. OpenAI uyumlu başka bir embedding sunucusu (ör. yerel Ollama). Ayarlanırsa embedding için Groq kullanılmaz. Model 768 boyutlu olmalı |
+| `GROQ_CHAT_MODEL` | Sohbet modeli. Groq hesabında var olmalı (`openai/gpt-oss-120b` gibi) |
+| `GROQ_REASONING_EFFORT` | İsteğe bağlı: `low`, `medium`, `high`. Sadece gpt-oss gibi akıl yürütme modelleri için |
+| `EMBED_BASE_URL`, `EMBED_MODEL`, `EMBED_API_KEY` | Embedding sunucusu (OpenAI uyumlu). Docker kurulumunda `ollama` servisi kullanılır ve konteyner bunu kendisi ayarlar. Bu değişkenler host'ta çalıştırılan komutlar (`npm run eval`, `npm run dev`) içindir. Model 768 boyutlu olmalı |
 | `SESSION_SECRET` | Oturum imzası, en az 32 karakter |
 | `QA_LOG_RETENTION_DAYS` | Soru kaydının saklanma süresi, gün (varsayılan `90`, `0` = süresiz). Eski sorular silinir, öğretmen notları kalır |
 | `GROUNDING_MIN_SUPPORT` | İsteğe bağlı, 0 ile 1 arası (varsayılan `0.3`). Cevabın kaynak metinle örtüşme eşiği, altında kalan cevap "doğrulanamadı" sayılır. Gerçek materyalle `npm run eval` çalıştırıp ayarla |

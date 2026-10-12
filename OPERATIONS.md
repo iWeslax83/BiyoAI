@@ -75,28 +75,21 @@ docker compose up -d --build
 
 İnternet yokken eklenen kaynaklar bu durumda kalır ve bağlantı gelince otomatik işlenir (birkaç dakika sürebilir). Panel sayfası açıkken liste kendiliğinden yenilenir. Uzun süre değişmiyorsa Groq API anahtarının doğru olduğunu kontrol et.
 
-## Embedding servisi (yerel çalıştırma)
+## Embedding servisi (yerel)
 
-Kaynakların aranabilir hâle gelmesi için metinler vektöre çevrilir (embedding). Varsayılan olarak Groq kullanılır, ama Groq hesabında embedding modeli yoksa kaynaklar "işlenmeyi bekliyor" durumunda kalır ve panelde ayar hatası görünür. Bu durumda okul PC'sinde yerel servis çalıştırılabilir:
+Kaynakların aranabilir olması için metinler vektöre çevrilir (embedding). Groq hesaplarında embedding modeli olmadığı için bu iş okul PC'sinde, `ollama` servisinde çalışır. Ayrı bir kurulum gerekmez: `docker compose up -d` hem servisi başlatır hem de modeli (`nomic-embed-text`, yaklaşık 270 MB) ilk açılışta bir kez indirir. İndirme bitene kadar kaynaklar "işlenmeyi bekliyor" görünür ve model hazır olunca otomatik işlenir.
 
-```
-cd /opt/biyoai
-docker compose --profile local-embeddings up -d
-docker compose --profile local-embeddings exec ollama ollama pull nomic-embed-text
-```
-
-Ardından `.env` dosyasına şunları ekle ve uygulamayı yeniden başlat:
+Model indirmesinin bittiğini kontrol etmek için:
 
 ```
-EMBED_BASE_URL=http://ollama:11434/v1
-EMBED_MODEL=nomic-embed-text
+docker compose logs ollama-init
+docker compose exec ollama ollama list
 ```
 
-```
-docker compose up -d --force-recreate app
-```
-
-Model 768 boyutlu vektör üretmelidir (veritabanı sütunu buna göre). Embedding sağlayıcısı değiştirilirse eski kaynakların vektörleri yeni modelle uyumsuz olur: tüm kaynaklar silinip yeniden eklenmeli (ya da panelden metni düzenleyip kaydederek yeniden işlenmeli).
+Notlar:
+- Okul ağı HTTPS'i denetliyorsa model indirme `certs/extra-ca.pem` olmadan başarısız olur, bkz. "TLS sertifika hatası".
+- Model 768 boyutlu vektör üretmelidir (veritabanı sütunu buna göre). Model değiştirilirse eski kaynakların vektörleri uyumsuz olur: kaynaklar silinip yeniden eklenmeli.
+- İlk soruda model belleğe yüklenir, birkaç saniye ek süre olabilir.
 
 ## Doğruluk testi (gerçek soru seti ile)
 

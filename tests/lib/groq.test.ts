@@ -80,4 +80,51 @@ describe("groq client", () => {
     expect(error.message).toContain("SELF_SIGNED_CERT_IN_CHAIN");
     vi.unstubAllGlobals();
   });
+
+  it("removes <think> blocks that some reasoning models put in the content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content:
+                  "<think>önce kaynağa bakayım\nsonra cevaplarım</think>\nMitoz hücre bölünmesidir. [kaynak:1]",
+              },
+            },
+          ],
+        }),
+      }),
+    );
+
+    const answer = await chatComplete([{ role: "user", content: "x" }]);
+
+    expect(answer).toBe("Mitoz hücre bölünmesidir. [kaynak:1]");
+    vi.unstubAllGlobals();
+  });
+
+  it("sends reasoning_effort only when GROQ_REASONING_EFFORT is set", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: "c" } }] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    delete process.env.GROQ_REASONING_EFFORT;
+    await chatComplete([{ role: "user", content: "x" }]);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty(
+      "reasoning_effort",
+    );
+
+    process.env.GROQ_REASONING_EFFORT = "low";
+    await chatComplete([{ role: "user", content: "x" }]);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).reasoning_effort).toBe(
+      "low",
+    );
+
+    delete process.env.GROQ_REASONING_EFFORT;
+    vi.unstubAllGlobals();
+  });
 });
