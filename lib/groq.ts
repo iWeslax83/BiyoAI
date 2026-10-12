@@ -29,11 +29,11 @@ function requireGroqConfig(): {
   };
 }
 
-async function groqFetch(
+async function groqFetch<T>(
   path: string,
   apiKey: string,
   body: unknown,
-): Promise<any> {
+): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
     headers: {
@@ -51,16 +51,19 @@ async function groqFetch(
 
 export async function embed(texts: string[]): Promise<number[][]> {
   const { apiKey, embedModel } = requireGroqConfig();
-  const json = await groqFetch("/embeddings", apiKey, {
-    model: embedModel,
-    input: texts,
-  });
-  return json.data.map((d: { embedding: number[] }) => d.embedding);
+  const json = await groqFetch<{ data: { embedding: number[] }[] }>(
+    "/embeddings",
+    apiKey,
+    { model: embedModel, input: texts },
+  );
+  return json.data.map((d) => d.embedding);
 }
 
 export async function chatComplete(messages: ChatMessage[]): Promise<string> {
   const { apiKey, chatModel } = requireGroqConfig();
-  const json = await groqFetch("/chat/completions", apiKey, {
+  const json = await groqFetch<{
+    choices: { message: { content: string } }[];
+  }>("/chat/completions", apiKey, {
     model: chatModel,
     messages,
     temperature: 0.2,

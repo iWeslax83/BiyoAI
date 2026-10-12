@@ -42,15 +42,29 @@ export default function OgretmenPage() {
     setSources(body.sources ?? []);
   }
 
-  async function loadQaLog() {
-    const res = await fetch("/api/qa-log");
-    const body = await res.json();
-    setQaLog(body.entries ?? []);
-  }
-
   useEffect(() => {
-    loadSources();
-    loadQaLog();
+    let cancelled = false;
+    async function loadInitialData() {
+      try {
+        const [sourcesRes, qaLogRes] = await Promise.all([
+          fetch("/api/sources"),
+          fetch("/api/qa-log"),
+        ]);
+        const sourcesBody = await sourcesRes.json();
+        const qaLogBody = await qaLogRes.json();
+        if (cancelled) return;
+        setSources(sourcesBody.sources ?? []);
+        setQaLog(qaLogBody.entries ?? []);
+      } catch {
+        if (!cancelled) {
+          setError("Veriler yüklenemedi. Sayfayı yenileyip tekrar dene.");
+        }
+      }
+    }
+    loadInitialData();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function sendNote(qaLogId: number) {

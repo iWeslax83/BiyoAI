@@ -10,8 +10,8 @@ vi.mock("../../lib/groq", () => ({
   chatComplete: vi.fn(async () => "Mitoz, [kaynak:3] hücrenin bölünmesidir."),
   embed: vi.fn(async (texts: string[]) => texts.map(() => [0.1, 0.2, 0.3])),
 }));
-const queryMock = vi.fn(
-  async (sql: string, _params: unknown[]): Promise<unknown[]> => {
+const queryMock = vi.fn<(sql: string, params: unknown[]) => Promise<unknown[]>>(
+  async (sql) => {
     if (sql.includes("SELECT title FROM sources"))
       return [{ title: "Test Kaynak" }];
     return [{ id: 42 }];

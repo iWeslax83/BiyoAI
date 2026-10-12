@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
   try {
     chunkCount = await ingestSource(source.id, text);
   } catch (err) {
+    console.error("sources: ingest failed", err);
     // Ingest failed (bad/missing Groq key, network down, ...) - don't leave
     // a zero-chunk source behind that the teacher thinks succeeded while
     // students silently get "bilmiyorum" for it forever. Roll back the row
