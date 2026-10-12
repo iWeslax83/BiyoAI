@@ -72,6 +72,18 @@ export default function OgretmenPage() {
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [sendingNoteId, setSendingNoteId] = useState<number | null>(null);
   const [qaLogError, setQaLogError] = useState<string | null>(null);
+  const [qaSearch, setQaSearch] = useState("");
+  const [activeQaSearch, setActiveQaSearch] = useState("");
+  const [hasMoreQa, setHasMoreQa] = useState(false);
+  const [loadingQa, setLoadingQa] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{
+    text: string;
+    isError: boolean;
+  } | null>(null);
 
   async function loadSources() {
     const res = await fetch("/api/sources");
@@ -94,6 +106,7 @@ export default function OgretmenPage() {
         setSources(sourcesBody.sources ?? []);
         setProvider(sourcesBody.provider ?? null);
         setQaLog(qaLogBody.entries ?? []);
+        setHasMoreQa(Boolean(qaLogBody.hasMore));
       } catch {
         if (!cancelled) {
           setError("Veriler yüklenemedi. Sayfayı yenileyip tekrar dene.");
@@ -123,6 +136,69 @@ export default function OgretmenPage() {
     }, PENDING_REFRESH_MS);
     return () => clearInterval(timer);
   }, [hasPending]);
+
+  // Loads a page of the question log. `append` adds older entries below the
+  // ones already shown; otherwise the list is replaced (new search).
+  async function loadQaLog(search: string, append: boolean) {
+    if (loadingQa) return;
+    setLoadingQa(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("q", search);
+      if (append && qaLog.length > 0) {
+        params.set("before", String(qaLog[qaLog.length - 1].id));
+      }
+      const res = await fetch(`/api/qa-log?${params.toString()}`);
+      if (!res.ok) {
+        setQaLogError(await parseErrorMessage(res));
+        return;
+      }
+      const body = await res.json();
+      setQaLogError(null);
+      setQaLog((prev) =>
+        append ? [...prev, ...(body.entries ?? [])] : (body.entries ?? []),
+      );
+      setHasMoreQa(Boolean(body.hasMore));
+      setActiveQaSearch(search);
+    } catch {
+      setQaLogError("Sorular yüklenemedi. Lütfen tekrar deneyin.");
+    } finally {
+      setLoadingQa(false);
+    }
+  }
+
+  async function changePassword() {
+    if (changingPassword) return;
+    setChangingPassword(true);
+    setPasswordMessage(null);
+    try {
+      const res = await fetch("/api/auth/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current: currentPassword,
+          next: newPassword,
+        }),
+      });
+      if (!res.ok) {
+        setPasswordMessage({
+          text: await parseErrorMessage(res),
+          isError: true,
+        });
+        return;
+      }
+      setCurrentPassword("");
+      setNewPassword("");
+      setPasswordMessage({ text: "Şifre değiştirildi.", isError: false });
+    } catch {
+      setPasswordMessage({
+        text: "Bir hata oluştu. Lütfen tekrar deneyin.",
+        isError: true,
+      });
+    } finally {
+      setChangingPassword(false);
+    }
+  }
 
   async function sendNote(qaLogId: number) {
     const note = (notes[qaLogId] ?? "").trim();
@@ -440,6 +516,29 @@ export default function OgretmenPage() {
       <section className="ogretmen-section">
         <h2 className="ogretmen-section-title">Son Sorular</h2>
         {qaLogError && <p className="ogretmen-error">{qaLogError}</p>}
+        <form
+          className="ogretmen-search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            loadQaLog(qaSearch.trim(), false);
+          }}
+        >
+          <input
+            className="ogretmen-input"
+            type="search"
+            value={qaSearch}
+            onChange={(e) => setQaSearch(e.target.value)}
+            placeholder="Sorularda ara..."
+            aria-label="Sorularda ara"
+          />
+          <button
+            className="ogretmen-button"
+            type="submit"
+            disabled={loadingQa}
+          >
+            Ara
+          </button>
+        </form>
         {qaLog.length > 0 && (
           <label className="ogretmen-filter">
             <input
@@ -451,7 +550,11 @@ export default function OgretmenPage() {
           </label>
         )}
         {qaLog.length === 0 ? (
-          <p className="ogretmen-source-empty">Henüz soru sorulmadı.</p>
+          <p className="ogretmen-source-empty">
+            {activeQaSearch
+              ? "Aramayla eşleşen soru yok."
+              : "Henüz soru sorulmadı."}
+          </p>
         ) : visibleQaLog.length === 0 ? (
           <p className="ogretmen-source-empty">
             Kaynaksız cevap yok. Son sorular kaynaklarla cevaplanmış.
@@ -493,6 +596,55 @@ export default function OgretmenPage() {
             ))}
           </ul>
         )}
+        {hasMoreQa && (
+          <button
+            className="ogretmen-button ogretmen-more-button"
+            onClick={() => loadQaLog(activeQaSearch, true)}
+            disabled={loadingQa}
+          >
+            {loadingQa ? "Yükleniyor..." : "Daha eski soruları göster"}
+          </button>
+        )}
+      </section>
+
+      <section className="ogretmen-section">
+        <h2 className="ogretmen-section-title">Şifre değiştir</h2>
+        {passwordMessage && (
+          <p
+            className={
+              passwordMessage.isError ? "ogretmen-error" : "ogretmen-success"
+            }
+          >
+            {passwordMessage.text}
+          </p>
+        )}
+        <input
+          className="ogretmen-input"
+          type="password"
+          autoComplete="current-password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          placeholder="Mevcut şifre"
+          aria-label="Mevcut şifre"
+        />
+        <input
+          className="ogretmen-input"
+          type="password"
+          autoComplete="new-password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="Yeni şifre (en az 8 karakter)"
+          aria-label="Yeni şifre"
+        />
+        <button
+          className="ogretmen-button ogretmen-button-primary"
+          onClick={changePassword}
+          disabled={
+            changingPassword || !currentPassword || newPassword.length < 8
+          }
+        >
+          {changingPassword ? "Kaydediliyor..." : "Şifreyi Değiştir"}
+        </button>
       </section>
 
       <section className="ogretmen-section">
