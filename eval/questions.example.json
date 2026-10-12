@@ -1,0 +1,20 @@
+[
+  {
+    "question": "Mitoz bölünmenin evreleri nelerdir?",
+    "expect": "answer",
+    "mustMention": ["profaz", "metafaz", "anafaz", "telofaz"]
+  },
+  {
+    "question": "Mitoz ile mayoz arasındaki fark nedir?",
+    "expect": "answer",
+    "mustMention": ["mayoz"]
+  },
+  {
+    "question": "Türkiye'nin başkenti neresidir?",
+    "expect": "refuse"
+  },
+  {
+    "question": "Bu hafta okul kantininde ne var?",
+    "expect": "refuse"
+  }
+]

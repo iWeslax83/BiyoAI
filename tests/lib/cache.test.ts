@@ -12,6 +12,7 @@ describe("cache", () => {
       grounded: true,
       sourceIds: [1],
       sourceTitles: ["Kaynak"],
+      supportScore: 1,
     };
     setCachedAnswer("Fotosentez Nedir?", answer);
     expect(getCachedAnswer("  fotosentez nedir?  ")).toEqual(answer);
@@ -23,6 +24,7 @@ describe("cache", () => {
       grounded: true,
       sourceIds: [],
       sourceTitles: [],
+      supportScore: 1,
     });
     expect(getCachedAnswer("silinecek soru")).toBeDefined();
     clearCache();
@@ -37,6 +39,7 @@ describe("cache", () => {
         grounded: true,
         sourceIds: [],
         sourceTitles: [],
+        supportScore: 1,
       });
     }
     // The very first inserted entry should have been evicted to make room.

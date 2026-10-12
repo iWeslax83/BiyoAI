@@ -71,4 +71,35 @@ describe("answerQuestion", () => {
     expect(result.sourceIds).not.toContain(99);
     expect(result.grounded).toBe(true);
   });
+
+  it("is not grounded when the answer cites a source but says things the sources do not support", async () => {
+    vi.mocked(retrieveChunks).mockResolvedValueOnce([
+      { id: 1, sourceId: 3, content: "Mitoz hücre bölünmesidir." },
+    ]);
+    vi.mocked(chatComplete).mockResolvedValueOnce(
+      "Kloroplastlar fotosentez sırasında güneş ışığını glikoza dönüştürür. [kaynak:3]",
+    );
+
+    const result = await answerQuestion("Mitoz nedir?");
+
+    expect(result.sourceIds).toEqual([3]);
+    expect(result.grounded).toBe(false);
+    expect(result.supportScore).toBeLessThan(0.3);
+  });
+
+  it("reports the support score for a grounded answer", async () => {
+    const result = await answerQuestion("Mitoz nedir?");
+    expect(result.grounded).toBe(true);
+    expect(result.supportScore).toBeGreaterThan(0.5);
+  });
+
+  it("does not write to the qa log when logging is turned off", async () => {
+    queryMock.mockClear();
+
+    await answerQuestion("Mitoz nedir?", { log: false });
+
+    expect(
+      queryMock.mock.calls.some(([sql]) => sql.includes("INSERT INTO qa_log")),
+    ).toBe(false);
+  });
 });

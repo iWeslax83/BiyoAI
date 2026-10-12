@@ -9,7 +9,8 @@
     "test": "vitest run",
     "seed:teacher": "tsx scripts/seed-teacher.ts",
     "lint": "eslint",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "eval": "tsx scripts/eval.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

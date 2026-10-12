@@ -98,3 +98,15 @@ docker compose up -d --force-recreate app
 
 Model 768 boyutlu vektör üretmelidir (veritabanı sütunu buna göre). Embedding sağlayıcısı değiştirilirse eski kaynakların vektörleri yeni modelle uyumsuz olur: tüm kaynaklar silinip yeniden eklenmeli (ya da panelden metni düzenleyip kaydederek yeniden işlenmeli).
 
+## Doğruluk testi (gerçek soru seti ile)
+
+Kaynaklar yüklendikten sonra sistemin cevap kalitesini ölçmek için, hazırladığın soru dosyasını konteynere kopyalayıp çalıştır:
+
+```
+cd /opt/biyoai
+docker compose cp sorularim.json app:/app/eval/sorularim.json
+docker compose exec app npm run eval -- eval/sorularim.json
+```
+
+Dosya biçimi için `eval/questions.example.json` dosyasına bak. Çıktıdaki "GROUNDING_MIN_SUPPORT önerisi" değerini `.env` dosyasına yazıp `docker compose up -d --force-recreate app` ile uygulayabilirsin.
+

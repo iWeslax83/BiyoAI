@@ -74,6 +74,7 @@ npm run seed:teacher -- <sifre>
 | `GROQ_EMBED_MODEL` | Groq üzerinden embedding modeli. Groq hesabında embedding modeli olduğundan emin ol |
 | `EMBED_BASE_URL`, `EMBED_MODEL`, `EMBED_API_KEY` | İsteğe bağlı. OpenAI uyumlu başka bir embedding sunucusu (ör. yerel Ollama). Ayarlanırsa embedding için Groq kullanılmaz. Model 768 boyutlu olmalı |
 | `SESSION_SECRET` | Oturum imzası, en az 32 karakter |
+| `GROUNDING_MIN_SUPPORT` | İsteğe bağlı, 0 ile 1 arası (varsayılan `0.3`). Cevabın kaynak metinle örtüşme eşiği, altında kalan cevap "doğrulanamadı" sayılır. Gerçek materyalle `npm run eval` çalıştırıp ayarla |
 
 ## Testler
 
@@ -102,6 +103,18 @@ npm run lint
 npx tsc --noEmit
 npm run build
 ```
+
+## Doğruluk değerlendirmesi
+
+Sistemin "sadece kaynaktan cevap ver, bilmiyorsan söyle" kuralına uyup uymadığını gerçek materyalle ölçmek için:
+
+```bash
+npm run eval -- eval/questions.json
+```
+
+Soru dosyası, kaynakta cevabı olan (`"expect": "answer"`, isteğe bağlı `mustMention` terimleriyle) ve kapsam dışı (`"expect": "refuse"`) soruları içerir. Örnek: [eval/questions.example.json](eval/questions.example.json). Betik her soru için sonucu yazar, özet çıkarır ve `GROUNDING_MIN_SUPPORT` için bir değer önerir. Sorular öğretmen panelindeki soru kaydına yazılmaz.
+
+Cevabın doğrulanmış sayılması için iki şart vardır: cevap geçerli bir `[kaynak:N]` etiketi içermeli ve içeriğindeki anlamlı kelimelerin yeterli kısmı getirilen kaynak metinde geçmeli. Bu ikinci kontrol bir sezgiseldir (kesin kanıt değildir), bu yüzden eşiği gerçek örneklerle ayarlamak önemlidir.
 
 ## Klasör yapısı
 

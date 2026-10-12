@@ -15,6 +15,7 @@ COPY --from=build /app/package.json ./package.json
 # inside this container per OPERATIONS.md.
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/lib ./lib
+COPY --from=build /app/eval ./eval
 COPY --from=build /app/tsconfig.json ./tsconfig.json
 EXPOSE 3000
 CMD ["npm", "start"]
