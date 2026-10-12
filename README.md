@@ -30,7 +30,7 @@ Ek korumalar:
 | Uygulama | Next.js 16 (App Router), React 19, TypeScript, Node 22 |
 | Veritabanı | Postgres 16 + pgvector (Docker Compose) |
 | Sohbet modeli | Groq API |
-| Embedding | Yerel Ollama (`nomic-embed-text`), okul PC'sinde |
+| Embedding | Yerel Text Embeddings Inference, `intfloat/multilingual-e5-base` (Türkçe, 768 boyut), okul PC'sinde |
 | Kimlik doğrulama | Öğretmen şifresi (bcrypt) + imzalı oturum çerezi |
 | PDF | unpdf |
 | Test ve CI | Vitest, GitHub Actions |
@@ -73,8 +73,10 @@ npm run seed:teacher -- <sifre>
 | `GROQ_API_KEY` | Groq API anahtarı |
 | `GROQ_CHAT_MODEL` | Sohbet modeli. Groq hesabında var olmalı (`openai/gpt-oss-120b` gibi) |
 | `GROQ_REASONING_EFFORT` | İsteğe bağlı: `low`, `medium`, `high`. Sadece gpt-oss gibi akıl yürütme modelleri için |
-| `EMBED_BASE_URL`, `EMBED_MODEL`, `EMBED_API_KEY` | Embedding sunucusu (OpenAI uyumlu). Docker kurulumunda `ollama` servisi kullanılır ve konteyner bunu kendisi ayarlar. Bu değişkenler host'ta çalıştırılan komutlar (`npm run eval`, `npm run dev`) içindir. Model 768 boyutlu olmalı |
+| `EMBED_BASE_URL`, `EMBED_MODEL`, `EMBED_API_KEY` | Embedding sunucusu (OpenAI uyumlu). Docker kurulumunda `embeddings` servisi kullanılır ve konteyner bunu kendisi ayarlar. Bu değişkenler host'ta çalıştırılan komutlar (`npm run eval`, `npm run dev`) içindir. Model 768 boyutlu olmalı |
 | `SESSION_SECRET` | Oturum imzası, en az 32 karakter |
+| `EMBED_QUERY_PREFIX`, `EMBED_DOCUMENT_PREFIX` | İsteğe bağlı. e5 modelleri için `"query: "` ve `"passage: "` |
+| `RETRIEVAL_MAX_DISTANCE` | İsteğe bağlı (varsayılan `0.22`). Bir kaynak parçasının soruyla ilgili sayılması için en büyük kosinüs mesafesi. Embedding modeline bağlıdır, `npm run eval` ile ayarla |
 | `QA_LOG_RETENTION_DAYS` | Soru kaydının saklanma süresi, gün (varsayılan `90`, `0` = süresiz). Eski sorular silinir, öğretmen notları kalır |
 | `GROUNDING_MIN_SUPPORT` | İsteğe bağlı, 0 ile 1 arası (varsayılan `0.3`). Cevabın kaynak metinle örtüşme eşiği, altında kalan cevap "doğrulanamadı" sayılır. Gerçek materyalle `npm run eval` çalıştırıp ayarla |
 

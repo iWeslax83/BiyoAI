@@ -23,7 +23,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      ollama:
+      embeddings:
         condition: service_started
     env_file: .env
     environment:
@@ -31,10 +31,13 @@ services:
       # Extra CA for networks that inspect HTTPS (see certs/README.md). If the
       # file does not exist Node only prints a warning at startup.
       NODE_EXTRA_CA_CERTS: /certs/extra-ca.pem
-      # Embeddings run in the ollama service below (see OPERATIONS.md). These
+      # Embeddings run in the embeddings service below (see OPERATIONS.md). These
       # override .env so the same .env also works for scripts run on the host.
-      EMBED_BASE_URL: http://ollama:11434/v1
-      EMBED_MODEL: nomic-embed-text
+      EMBED_BASE_URL: http://embeddings:80/v1
+      EMBED_MODEL: intfloat/multilingual-e5-base
+      # e5 models need these prefixes to tell questions from passages.
+      EMBED_QUERY_PREFIX: "query: "
+      EMBED_DOCUMENT_PREFIX: "passage: "
     volumes:
       - ./certs:/certs:ro
     ports:
@@ -42,35 +45,23 @@ services:
 
   # Embeddings (turning text into vectors for search) run here, on the school
   # PC, so source and question text does not leave it for that step.
-  ollama:
-    image: ollama/ollama
+  # multilingual-e5-base: understands Turkish and outputs 768 dimensions, the
+  # width of the database column. The model is downloaded from Hugging Face on
+  # first start and kept in the embeddings_data volume.
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9.4
     restart: unless-stopped
+    command: ["--model-id", "intfloat/multilingual-e5-base"]
     environment:
       # Extra CA for networks that inspect HTTPS (see certs/README.md); needed
-      # to download the model.
+      # to download the model there.
       SSL_CERT_FILE: /certs/extra-ca.pem
     volumes:
-      - ollama_data:/root/.ollama
+      - embeddings_data:/data
       - ./certs:/certs:ro
     ports:
-      - "127.0.0.1:11434:11434"
-
-  # Downloads the embedding model once; the model is kept in the ollama_data
-  # volume afterwards.
-  ollama-init:
-    image: ollama/ollama
-    restart: "no"
-    depends_on:
-      - ollama
-    environment:
-      OLLAMA_HOST: http://ollama:11434
-    entrypoint:
-      - sh
-      - -c
-      - |
-        until ollama list >/dev/null 2>&1; do sleep 2; done
-        ollama pull nomic-embed-text
+      - "127.0.0.1:8080:80"
 
 volumes:
   db_data:
-  ollama_data:
+  embeddings_data:

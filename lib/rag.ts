@@ -3,6 +3,7 @@ import { chatComplete, embed } from "./groq";
 import { buildSystemPrompt } from "./prompt";
 import { query } from "./db";
 import { minSupport, supportScore } from "./grounding";
+import { toPlainText } from "./plain-text";
 
 export type RagAnswer = {
   answer: string;
@@ -36,21 +37,23 @@ export async function answerQuestion(
   // search with the previous question as well.
   const lastQuestion = history[history.length - 1]?.question;
   const searchText = lastQuestion ? `${lastQuestion}\n${question}` : question;
-  const [vector] = await embed([searchText]);
+  const [vector] = await embed([searchText], { type: "query" });
   const [chunks, feedback] = await Promise.all([
     retrieveChunks(vector, 5),
     retrieveFeedback(vector, 5),
   ]);
 
   const systemPrompt = buildSystemPrompt(chunks, feedback);
-  const answer = await chatComplete([
-    { role: "system", content: systemPrompt },
-    ...history.flatMap((turn) => [
-      { role: "user" as const, content: turn.question },
-      { role: "assistant" as const, content: turn.answer },
+  const answer = toPlainText(
+    await chatComplete([
+      { role: "system", content: systemPrompt },
+      ...history.flatMap((turn) => [
+        { role: "user" as const, content: turn.question },
+        { role: "assistant" as const, content: turn.answer },
+      ]),
+      { role: "user", content: question },
     ]),
-    { role: "user", content: question },
-  ]);
+  );
 
   const citedIds = Array.from(
     new Set(

@@ -147,4 +147,35 @@ describe("retrieve", () => {
       "ESKI-NOT",
     ]);
   });
+
+  it("RETRIEVAL_MAX_DISTANCE changes how far a match may be", async () => {
+    const unrelatedVector = new Array(768).fill(0);
+    unrelatedVector[100] = 1; // orthogonal to every fixture row: distance 1
+
+    expect(await retrieveChunks(unrelatedVector, 5)).toEqual([]);
+
+    process.env.RETRIEVAL_MAX_DISTANCE = "1.5";
+    try {
+      expect((await retrieveChunks(unrelatedVector, 5)).length).toBeGreaterThan(
+        0,
+      );
+      expect(
+        (await retrieveFeedback(unrelatedVector, 5)).length,
+      ).toBeGreaterThan(0);
+    } finally {
+      delete process.env.RETRIEVAL_MAX_DISTANCE;
+    }
+  });
+
+  it("ignores an invalid RETRIEVAL_MAX_DISTANCE", async () => {
+    const unrelatedVector = new Array(768).fill(0);
+    unrelatedVector[100] = 1;
+
+    process.env.RETRIEVAL_MAX_DISTANCE = "abc";
+    try {
+      expect(await retrieveChunks(unrelatedVector, 5)).toEqual([]);
+    } finally {
+      delete process.env.RETRIEVAL_MAX_DISTANCE;
+    }
+  });
 });

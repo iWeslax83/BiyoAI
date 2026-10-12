@@ -132,5 +132,16 @@ describe("answerQuestion", () => {
     vi.mocked(embed).mockClear();
     await answerQuestion("Mitoz nedir?");
     expect(vi.mocked(embed).mock.calls[0][0]).toEqual(["Mitoz nedir?"]);
+    expect(vi.mocked(embed).mock.calls[0][1]).toEqual({ type: "query" });
+  });
+
+  it("returns the answer as plain text", async () => {
+    vi.mocked(chatComplete).mockResolvedValueOnce(
+      "**Mitoz** hücre bölünmesidir. [kaynak:3]",
+    );
+
+    const result = await answerQuestion("Mitoz nedir?");
+
+    expect(result.answer).toBe("Mitoz hücre bölünmesidir. [kaynak:3]");
   });
 });

@@ -45,6 +45,15 @@ describe("buildSystemPrompt", () => {
     );
   });
 
+  it("asks for plain text without markdown, since the board shows it as is", () => {
+    const prompt = buildSystemPrompt(
+      [{ id: 1, sourceId: 1, content: "x" }],
+      [],
+    );
+    expect(prompt).toContain("tablo");
+    expect(prompt).toContain("**");
+  });
+
   it("says no matching source when chunks is empty", () => {
     const prompt = buildSystemPrompt([], []);
     expect(prompt).toContain("bilmiyorum");

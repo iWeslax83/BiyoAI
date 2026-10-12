@@ -45,7 +45,25 @@ function configError(message: string): ProviderError {
   return new ProviderError(message, "config");
 }
 
-export async function embed(texts: string[]): Promise<number[][]> {
+type EmbedOptions = {
+  // "query": text a student typed, searched against stored passages.
+  // "document": text being stored (sources, teacher notes).
+  // Some models (the e5 family) need different prefixes for each kind.
+  type?: "query" | "document";
+};
+
+function withPrefix(texts: string[], type: EmbedOptions["type"]): string[] {
+  const prefix =
+    type === "query"
+      ? process.env.EMBED_QUERY_PREFIX
+      : process.env.EMBED_DOCUMENT_PREFIX;
+  return prefix ? texts.map((t) => `${prefix}${t}`) : texts;
+}
+
+export async function embed(
+  texts: string[],
+  options: EmbedOptions = {},
+): Promise<number[][]> {
   const config = resolveConfig();
   if (!config) {
     throw configError(
@@ -63,7 +81,10 @@ export async function embed(texts: string[]): Promise<number[][]> {
     res = await fetch(`${config.baseUrl}/embeddings`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ model: config.model, input: texts }),
+      body: JSON.stringify({
+        model: config.model,
+        input: withPrefix(texts, options.type),
+      }),
     });
   } catch (err) {
     const failure = networkFailure(err, "Embedding sağlayıcısına");

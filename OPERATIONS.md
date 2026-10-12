@@ -77,19 +77,21 @@ docker compose up -d --build
 
 ## Embedding servisi (yerel)
 
-Kaynakların aranabilir olması için metinler vektöre çevrilir (embedding). Groq hesaplarında embedding modeli olmadığı için bu iş okul PC'sinde, `ollama` servisinde çalışır. Ayrı bir kurulum gerekmez: `docker compose up -d` hem servisi başlatır hem de modeli (`nomic-embed-text`, yaklaşık 270 MB) ilk açılışta bir kez indirir. İndirme bitene kadar kaynaklar "işlenmeyi bekliyor" görünür ve model hazır olunca otomatik işlenir.
+Kaynakların aranabilir olması için metinler vektöre çevrilir (embedding). Groq hesaplarında embedding modeli olmadığı için bu iş okul PC'sinde, `embeddings` servisinde çalışır (Hugging Face Text Embeddings Inference, model `intfloat/multilingual-e5-base`: Türkçe bilir, 768 boyutlu). Ayrı kurulum gerekmez: `docker compose up -d` servisi başlatır ve model ilk açılışta Hugging Face'ten bir kez indirilir (yaklaşık 1 GB, birkaç dakika). İndirme bitene kadar kaynaklar "işlenmeyi bekliyor" görünür ve model hazır olunca otomatik işlenir.
 
-Model indirmesinin bittiğini kontrol etmek için:
+Hazır olup olmadığını kontrol etmek için:
 
 ```
-docker compose logs ollama-init
-docker compose exec ollama ollama list
+docker compose logs embeddings | tail -3      # "Ready" satırını ara
+curl -s localhost:8080/health                 # 200 dönmeli
 ```
 
 Notlar:
 - Okul ağı HTTPS'i denetliyorsa model indirme `certs/extra-ca.pem` olmadan başarısız olur, bkz. "TLS sertifika hatası".
+- Bazı ağlar model dağıtım sitelerini engeller (örneğin MEB ağında Ollama'nın model deposu `cloudflarestorage.com` engelli, Hugging Face açık). Bu yüzden Hugging Face tabanlı bir servis seçildi. İndirme "engellendi" hatasıyla başarısız olursa ağ yöneticisinden `huggingface.co` için izin iste.
 - Model 768 boyutlu vektör üretmelidir (veritabanı sütunu buna göre). Model değiştirilirse eski kaynakların vektörleri uyumsuz olur: kaynaklar silinip yeniden eklenmeli.
-- İlk soruda model belleğe yüklenir, birkaç saniye ek süre olabilir.
+- e5 modelleri soru ve metin için farklı önek ister (`EMBED_QUERY_PREFIX`, `EMBED_DOCUMENT_PREFIX`); compose dosyası bunları ayarlar.
+- Benzerlik eşiği `RETRIEVAL_MAX_DISTANCE` (varsayılan `0.22`) bu modelin skor dağılımına göre belirlendi. Kendi materyaline göre `npm run eval` ile doğrula.
 
 ## Doğruluk testi (gerçek soru seti ile)
 

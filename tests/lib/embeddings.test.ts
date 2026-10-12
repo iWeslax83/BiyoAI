@@ -17,6 +17,8 @@ function errorResponse(status: number, body = "x") {
 }
 
 const ENV_KEYS = [
+  "EMBED_QUERY_PREFIX",
+  "EMBED_DOCUMENT_PREFIX",
   "EMBED_BASE_URL",
   "EMBED_API_KEY",
   "EMBED_MODEL",
@@ -140,5 +142,33 @@ describe("embed", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(errorResponse(503)));
     await embed(["a"]).catch(() => undefined);
     expect(getProviderStatus().embeddings.ok).toBe(true);
+  });
+
+  it("adds the configured prefixes: documents by default, queries on request", async () => {
+    process.env.EMBED_QUERY_PREFIX = "query: ";
+    process.env.EMBED_DOCUMENT_PREFIX = "passage: ";
+    const fetchMock = vi.fn().mockResolvedValue(okResponse([vec()]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await embed(["Mitoz nedir?"], { type: "query" });
+    await embed(["Mitoz hücre bölünmesidir."]);
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).input).toEqual([
+      "query: Mitoz nedir?",
+    ]);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).input).toEqual([
+      "passage: Mitoz hücre bölünmesidir.",
+    ]);
+  });
+
+  it("sends the text unchanged when no prefix is configured", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse([vec()]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await embed(["Mitoz nedir?"], { type: "query" });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).input).toEqual([
+      "Mitoz nedir?",
+    ]);
   });
 });
