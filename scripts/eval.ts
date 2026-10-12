@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { answerQuestion } from "../lib/rag";
 import { getPool } from "../lib/db";
 import { judge, suggestMinSupport, summarize } from "../lib/eval";
+import { ProviderError } from "../lib/provider-error";
 import type { EvalCase, EvalOutcome } from "../lib/eval";
 
 // Runs a list of questions through the real pipeline (database and AI
@@ -64,7 +65,18 @@ async function main() {
   process.exit(summary.failures.length > 0 ? 2 : 0);
 }
 
-main().catch((err) => {
-  console.error(err);
+main().catch(async (err) => {
+  if (err instanceof ProviderError) {
+    // A setup problem, not a bug: show the reason without a stack trace.
+    console.error(`\nHata (${err.kind}): ${err.message}`);
+    if (err.kind === "config") {
+      console.error(
+        "Ayarları .env dosyasında kontrol et (README: Ortam değişkenleri).",
+      );
+    }
+  } else {
+    console.error(err);
+  }
+  await getPool().end();
   process.exit(1);
 });

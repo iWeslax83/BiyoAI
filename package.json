@@ -7,10 +7,10 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "seed:teacher": "tsx scripts/seed-teacher.ts",
+    "seed:teacher": "tsx --env-file-if-exists=.env scripts/seed-teacher.ts",
     "lint": "eslint",
     "format": "prettier --write .",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "tsx --env-file-if-exists=.env scripts/eval.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
