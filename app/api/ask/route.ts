@@ -3,8 +3,29 @@ import { answerQuestion } from "@/lib/rag";
 import { getCachedAnswer, setCachedAnswer } from "@/lib/cache";
 import { withRateLimitQueue } from "@/lib/queue";
 import { isInappropriate } from "@/lib/content-filter";
+import { createRateLimiter } from "@/lib/rate-limit";
+
+// Per-client cap so one device can't burn the shared Groq quota. The board
+// is a single device; 30 questions a minute is far above real classroom use.
+const askLimiter = createRateLimiter({ limit: 30, windowMs: 60_000 });
+
+function clientKey(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0].trim();
+  return forwarded || req.headers.get("x-real-ip") || "unknown";
+}
 
 export async function POST(req: NextRequest) {
+  const limit = askLimiter.check(clientKey(req));
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Şu anda çok fazla soru geldi, lütfen biraz bekle." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfterSeconds) },
+      },
+    );
+  }
+
   const { question } = await req.json();
   if (!question || typeof question !== "string") {
     return NextResponse.json({ error: "question zorunlu" }, { status: 400 });

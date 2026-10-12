@@ -12,10 +12,13 @@ vi.mock("@/lib/rag", () => ({
 
 import { POST } from "../../app/api/ask/route";
 
-function makeRequest(body: unknown): NextRequest {
+function makeRequest(body: unknown, ip?: string): NextRequest {
   return new NextRequest("http://localhost/api/ask", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      ...(ip ? { "x-forwarded-for": ip } : {}),
+    },
     body: JSON.stringify(body),
   });
 }
@@ -66,6 +69,30 @@ describe("POST /api/ask", () => {
     const body = await res.json();
     expect(body.error).toContain("uygun değil");
     expect(answerQuestionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 with Retry-After once one client exceeds the per-minute limit", async () => {
+    const ip = "10.9.9.9";
+    for (let i = 0; i < 30; i++) {
+      const ok = await POST(
+        makeRequest({ question: `Hız sınırı sorusu ${i}` }, ip),
+      );
+      expect(ok.status).toBe(200);
+    }
+
+    const blocked = await POST(
+      makeRequest({ question: "Hız sınırı sorusu 31" }, ip),
+    );
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get("retry-after")).toBeTruthy();
+    const body = await blocked.json();
+    expect(body.error).toContain("çok fazla");
+
+    // A different client is not affected.
+    const other = await POST(
+      makeRequest({ question: "Başka cihaz sorusu" }, "10.1.1.1"),
+    );
+    expect(other.status).toBe(200);
   });
 
   it("returns 503 with a Turkish busy message when answerQuestion fails", async () => {
