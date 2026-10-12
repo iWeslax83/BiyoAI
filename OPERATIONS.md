@@ -58,3 +58,19 @@ Groq API anahtarı değişirse, teknik personel `/opt/biyoai/.env` dosyasındaki
 ```
 cd /opt/biyoai && docker compose up -d --force-recreate app
 ```
+
+## Güncelleme sonrası (mevcut kurulum)
+
+Yeni sürümü kopyaladıktan sonra, teknik personel:
+
+```
+cd /opt/biyoai
+docker compose exec -T db psql -U biyoai biyoai < lib/schema.sql
+docker compose up -d --build
+```
+
+İlk komut veritabanı şemasını günceller (tekrar çalıştırmak zararsızdır). İkincisi imajı yeniden kurar. Mevcut kaynaklar ve geri bildirimler korunur.
+
+## Kaynak "işlenmeyi bekliyor" görünüyor
+
+İnternet yokken eklenen kaynaklar bu durumda kalır ve bağlantı gelince otomatik işlenir (birkaç dakika sürebilir). Panel sayfası açıkken liste kendiliğinden yenilenir. Uzun süre değişmiyorsa Groq API anahtarının doğru olduğunu kontrol et.

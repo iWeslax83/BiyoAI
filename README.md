@@ -8,7 +8,7 @@ Tasarım kararlarının gerekçesi: [docs/superpowers/specs/2026-09-16-biyoai-de
 
 ## Nasıl çalışır
 
-1. Öğretmen `/ogretmen` panelinden kaynak metni yükler. Metin parçalanır, Groq ile vektörlere çevrilir ve Postgres (pgvector) içine yazılır.
+1. Öğretmen `/ogretmen` panelinden kaynak ekler: metin yapıştırır, PDF yükler (en fazla 10 MB, metin katmanı olan PDF) ya da bir web sayfasının bağlantısını verir. Metin parçalanır, Groq ile vektörlere çevrilir ve Postgres (pgvector) içine yazılır. Kaynaklar sonradan düzenlenebilir.
 2. Öğrenci `/tahta` ekranında soru sorar. Soruya en yakın kaynak parçaları pgvector ile bulunur.
 3. Model, sadece bu parçalarla cevap üretir. Cevaptaki kaynak referansları gerçekten getirilen parçalarla karşılaştırılıp doğrulanır.
 4. Öğretmen geçmiş cevaplara not bırakır. Notlar da vektörlenir; benzer bir soru geldiğinde en yakın notlar prompt'a eklenir (model ağırlığı değişmez).
@@ -16,18 +16,23 @@ Tasarım kararlarının gerekçesi: [docs/superpowers/specs/2026-09-16-biyoai-de
 Ek korumalar:
 
 - Uygunsuz içerik filtresi: küfür/hakaret içeren sorular modele gitmeden reddedilir ([lib/content-filter.ts](lib/content-filter.ts)). Üreme sistemi gibi müfredat terimleri serbesttir.
-- Groq limitine karşı istek kuyruğu ve tekrar eden sorular için yanıt önbelleği.
+- Groq limitine karşı istek kuyruğu, tekrar eden sorular için yanıt önbelleği ve istemci başına dakikada 30 soru sınırı.
+- Öğretmen girişinde istemci başına dakikada 10 deneme sınırı.
+- İnternet yokken eklenen kaynak silinmez, "işlenmeyi bekliyor" olarak kalır ve bağlantı gelince otomatik işlenir. Bekleyen kaynaklar cevaplarda kullanılmaz.
+- Öğretmen notları sadece soruyla ilgiliyse (benzerlik eşiği) prompt'a eklenir. Notlar çelişirse en yeni not geçerlidir.
+- Web sayfası kaynakları sunucu tarafında alınır. Yerel ağ ve özel IP adreslerine giden bağlantılar reddedilir.
 - Öğrenci kimliği hiçbir yerde tutulmaz. Soru-cevap kaydı anonimdir.
 
 ## Teknoloji
 
 | Parça | Seçim |
 | --- | --- |
-| Uygulama | Next.js 16 (App Router), React 19, TypeScript |
+| Uygulama | Next.js 16 (App Router), React 19, TypeScript, Node 22 |
 | Veritabanı | Postgres 16 + pgvector (Docker Compose) |
 | LLM ve embedding | Groq API |
 | Kimlik doğrulama | Öğretmen şifresi (bcrypt) + imzalı oturum çerezi |
-| Test | Vitest |
+| PDF | unpdf |
+| Test ve CI | Vitest, GitHub Actions |
 
 ## Sayfalar
 
@@ -83,7 +88,13 @@ docker compose exec -T db psql -U biyoai biyoai_test < lib/schema.sql
 TEST_DATABASE_URL=postgres://biyoai:biyoai@localhost:5432/biyoai_test npm test
 ```
 
-Kalite kontrolleri:
+Mevcut bir veritabanını güncellemek için (şema idempotent, tekrar çalıştırmak zararsız):
+
+```bash
+docker compose exec -T db psql -U biyoai biyoai < lib/schema.sql
+```
+
+Kalite kontrolleri (aynıları GitHub Actions'ta her push'ta çalışır):
 
 ```bash
 npm run lint
@@ -98,7 +109,8 @@ app/            sayfalar ve API route'ları
   tahta/        öğrenci ekranı
   ogretmen/     öğretmen paneli
   api/          ask, sources, feedback, qa-log, health, restart, auth
-lib/            RAG, retrieval, ingest, Groq istemcisi, önbellek, kuyruk, filtre
+lib/            RAG, retrieval, ingest, Groq istemcisi, önbellek, kuyruk, filtre,
+                hız sınırı, bekleyen kaynaklar, PDF ve bağlantı okuma
 scripts/        yedekleme, healthcheck, öğretmen şifresi
 tests/          birim ve API testleri
 docs/           tasarım belgesi ve uygulama planı
