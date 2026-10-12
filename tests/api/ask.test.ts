@@ -59,6 +59,15 @@ describe("POST /api/ask", () => {
     expect(answerQuestionMock).not.toHaveBeenCalled();
   });
 
+  it("returns 400 without calling the model when the question is inappropriate", async () => {
+    const res = await POST(makeRequest({ question: "siktir git aptal" }));
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("uygun değil");
+    expect(answerQuestionMock).not.toHaveBeenCalled();
+  });
+
   it("returns 503 with a Turkish busy message when answerQuestion fails", async () => {
     answerQuestionMock.mockRejectedValueOnce(new Error("groq unavailable"));
     const question = "Bu soru 503 hatasina dusecek";
