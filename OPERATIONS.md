@@ -110,3 +110,23 @@ docker compose exec app npm run eval -- eval/sorularim.json
 
 Dosya biçimi için `eval/questions.example.json` dosyasına bak. Çıktıdaki "GROUNDING_MIN_SUPPORT önerisi" değerini `.env` dosyasına yazıp `docker compose up -d --force-recreate app` ile uygulayabilirsin.
 
+## Otomatik başlatma, sağlık kontrolü ve yedek kurulumu
+
+PC'de bir kez, teknik personel tarafından:
+
+```
+cd /opt/biyoai
+sudo scripts/install-ops.sh
+```
+
+Bu betik şunları kurar: PC açılınca BiyoAI'yi başlatan systemd servisi, 5 dakikada bir sağlık kontrolü (düşerse uygulamayı yeniden başlatır) ve her gece 03:15'te veritabanı yedeği. Önce ne yapacağını görmek için `scripts/install-ops.sh --dry-run` çalıştırılabilir.
+
+Yedeğin gerçekten geri yüklenebildiğini doğrulamak için (canlı veritabanına dokunmaz):
+
+```
+cd /opt/biyoai
+scripts/backup.sh && scripts/restore-check.sh
+```
+
+Çıktıda kaynak, parça, soru ve not sayıları ile "Geri yükleme başarılı." görülmelidir. Bunu kurulumdan sonra ve ara sıra tekrarla.
+

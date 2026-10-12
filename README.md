@@ -136,3 +136,5 @@ docs/           tasarım belgesi ve uygulama planı
 - `biyoai.service`: PC açılınca Docker Compose'u başlatan systemd servisi
 - `scripts/healthcheck.sh`: sağlık kontrolü başarısızsa uygulamayı yeniden başlatır
 - `scripts/backup.sh`: günlük `pg_dump`, son 30 yedek tutulur
+- `scripts/restore-check.sh`: en yeni yedeğin geri yüklenebildiğini geçici bir veritabanında doğrular
+- `scripts/install-ops.sh`: servisi, sağlık kontrolünü ve yedeği tek komutla kurar

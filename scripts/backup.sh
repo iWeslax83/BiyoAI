@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd /opt/biyoai
+# Where the project lives. Override for testing: BIYOAI_DIR=$PWD scripts/backup.sh
+BIYOAI_DIR="${BIYOAI_DIR:-/opt/biyoai}"
+cd "$BIYOAI_DIR"
 
-BACKUP_DIR="/opt/biyoai/backups"
+BACKUP_DIR="$BIYOAI_DIR/backups"
 mkdir -p "$BACKUP_DIR"
 STAMP=$(date +%Y%m%d-%H%M%S)
 FINAL_FILE="$BACKUP_DIR/biyoai-$STAMP.sql"

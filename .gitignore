@@ -45,3 +45,6 @@ next-env.d.ts
 .omc/
 .playwright-mcp/
 *.log
+
+# local database backups
+/backups/
